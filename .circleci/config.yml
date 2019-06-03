@@ -47,7 +47,7 @@ jobs:
           working_directory: /build
           command: ninja
       - save_cache:
-          key: vxl_bin-{{ .Branch }}-{{ epoch }}
+          key: vxl_bin-{{ .Branch }}-{{ epoch }}-v2
           paths:
             - /build
       - run:
