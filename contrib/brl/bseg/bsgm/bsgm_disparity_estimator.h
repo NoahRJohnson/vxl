@@ -33,6 +33,9 @@ struct bsgm_disparity_estimator_params
   float p2_scale;
 
   //: Use gradient-weighted P2 smoothing, as suggested in paper.
+  // since discontinuities in depth are often manifested as intensity discontinuities
+  // the cost of a disparity change greater than 1 is lowered by dividing P2 by the
+  // magnitude of the x gradient.
   bool use_gradient_weighted_smoothing;
 
   //: In gradient-weighted smoothing, gradients beyond this magnitude are
@@ -206,7 +209,7 @@ class bsgm_disparity_estimator
     const vil_image_view<bool>& invalid_target,
     const vil_image_view<float>& grad_x,
     const vil_image_view<float>& grad_y,
-    const vil_image_view<int>& min_disparity);
+    const vil_image_view<int>& min_disparity );
 
   //: Pixel-wise directional cost
   inline void compute_dir_cost(

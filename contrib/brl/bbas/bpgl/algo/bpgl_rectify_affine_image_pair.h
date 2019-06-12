@@ -11,7 +11,15 @@
 #include <vpgl/vpgl_affine_fundamental_matrix.h>
 #include <vil/vil_image_resource.h>
 #include <vil/vil_image_view.h>
+#include <vil/vil_new.h>
 #include <vnl/vnl_matrix_fixed.h>
+
+struct rectify_params{
+  rectify_params(): min_disparity_z_(NAN), n_points_(1000), upsample_scale_(1.0){}
+  double min_disparity_z_; // horizontal plane where disparity at each pixel is minimum
+  size_t n_points_;            // number of points used to create correspondences
+  double upsample_scale_;      // scale factor to upsample rectified images
+};
 
 //
 // requires two images and associated affine cameras. Class can load the data from files if needed.
@@ -29,15 +37,34 @@ class bpgl_rectify_affine_image_pair
     bool good = this->set_images_and_cams(view0,acam0,view1,acam1);
   }
 
+  bpgl_rectify_affine_image_pair(vil_image_view<unsigned char> const& view0, vpgl_affine_camera<double> const& acam0,
+                                 vil_image_view<unsigned char> const& view1, vpgl_affine_camera<double> const& acam1)
+  {
+    bool good = this->set_images_and_cams(view0,acam0,view1,acam1);
+  }
+
   bpgl_rectify_affine_image_pair(vil_image_resource_sptr const& resc0, vpgl_affine_camera<double> const& acam0,
                                  vil_image_resource_sptr const& resc1, vpgl_affine_camera<double> const& acam1)
   {
     bool good = this->set_images_and_cams(resc0,acam0,resc1,acam1);
   }
 
+  //: set parameter values
+  void set_param_values(double min_disparity_z = NAN, size_t n_points = 1000, double upsample_scale =1.0){
+    params_.min_disparity_z_ = min_disparity_z;
+    params_.n_points_ = n_points;
+    params_.upsample_scale_ = upsample_scale;
+  }
+
   //: set images & cameras
   bool set_images_and_cams(vil_image_view_base_sptr const& view0, vpgl_affine_camera<double> const& acam0,
                            vil_image_view_base_sptr const& view1, vpgl_affine_camera<double> const& acam1);
+
+  bool set_images_and_cams(vil_image_view<unsigned char> const& view0, vpgl_affine_camera<double> const& acam0,
+                           vil_image_view<unsigned char> const& view1, vpgl_affine_camera<double> const& acam1)
+  {
+    return set_images_and_cams(vil_new_image_resource_of_view(view0), acam0, vil_new_image_resource_of_view(view1), acam1);
+  }
 
   bool set_images_and_cams(vil_image_resource_sptr const& resc0, vpgl_affine_camera<double> const& acam0,
                            vil_image_resource_sptr const& resc1, vpgl_affine_camera<double> const& acam1);
@@ -56,10 +83,12 @@ class bpgl_rectify_affine_image_pair
 
   //: utility methods
   static bool load_affine_camera(std::string const& cam_path, vpgl_affine_camera<double>& acam);
+  void set_params(rectify_params const& params) { params_ = params; }
 
-  bool process(vgl_box_3d<double>const& scene_box, size_t n_points = 1000)
+  bool process(vgl_box_3d<double>const& scene_box)
   {
-    if(!compute_rectification(scene_box,n_points))
+    // if min_disparity_z_ is NAN then 1/2 the midpoint of scene_box z is used
+    if(!compute_rectification(scene_box))
       return false;
     warp_pair();
     return true;
@@ -72,7 +101,7 @@ class bpgl_rectify_affine_image_pair
  protected:
 
   // protected utility methods
-  bool compute_rectification(vgl_box_3d<double> const& scene_box, size_t n_points = 1000);
+  bool compute_rectification(vgl_box_3d<double> const& scene_box);
   void compute_warp_dimensions_offsets();
   static void warp_image(vil_image_view<float> fview,
                          vnl_matrix_fixed<double, 3, 3> const& H,
@@ -81,6 +110,7 @@ class bpgl_rectify_affine_image_pair
   void warp_pair();
 
  private:
+  rectify_params params_;
   vil_image_view<float> fview0_;
   vil_image_view<float> fview1_;
   vil_image_view<float> rect_fview0_;

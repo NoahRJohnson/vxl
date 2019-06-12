@@ -16,10 +16,18 @@
 
 void bsgm_prob_pairwise_dsm::compute_byte()
 {
-  vil_convert_stretch_range(rip_.rectified_fview0(), rect_bview0_);
-  vil_convert_stretch_range(rip_.rectified_fview1(), rect_bview1_);
-  ni_ = rect_bview0_.ni();
-  nj_ = rect_bview0_.nj();
+  //remove small negative values due to interpolation during rectification
+  vil_image_view<float> fview0 = rip_.rectified_fview0(), fview1 = rip_.rectified_fview1();
+  ni_ = fview0.ni(); nj_ = fview0.nj();
+  for(size_t j = 0; j<nj_; ++j) {
+    for(size_t i = 0; i<ni_; ++i) {
+      float f0 = fview0(i,j), f1 = fview1(i,j);
+      if(f0<0.0f) fview0(i,j) = 0.0f;
+      if(f1<0.0f) fview1(i,j) = 0.0f;
+    }
+  }
+  vil_convert_stretch_range(fview0, rect_bview0_);
+  vil_convert_stretch_range(fview1, rect_bview1_);
 }
 
 vil_image_view<vxl_byte> bsgm_prob_pairwise_dsm::invalid_map() const
@@ -71,18 +79,11 @@ void bsgm_prob_pairwise_dsm::compute_dsm_and_ptset(vgl_box_3d<double> const& sce
   vgl_box_3d<float> fbox;
   fbox.add(pminf), fbox.add(pmaxf);
   float samp_dist = params_.point_sample_dist_;
-  //
-  //                              img0               img1     v
-  // in sgm disparity estimation img_targ(x,y) <-> img_ref( x + disp_target(x,y), y )
-  // the heightmap code requires  img1(u, v) <--> img0(u - disparity, v)
-  // thus the order is reversed                          ^
-  //
-  height_map_ =  bpgl_heightmap_from_disparity(rip_.rect_acam1(), rip_.rect_acam0(), disp_r_, scene_box, samp_dist);
 
-  vgl_point_2d<float> ul(pminf.x(), pmaxf.y());
+  height_map_ =  bpgl_heightmap_from_disparity(rip_.rect_acam0(), rip_.rect_acam1(), disp_r_, scene_box, samp_dist);
+
   std::vector<vgl_point_3d<float> > pts3d;
-  ///  bpgl_gridding::pointset_from_grid(height_map_, ul, samp_dist, pts3d);
-  bpgl_pointset_from_disparity(rip_.rect_acam1(), rip_.rect_acam0(), disp_r_, fbox, samp_dist, pts3d);
+  bpgl_pointset_from_disparity(rip_.rect_acam0(), rip_.rect_acam1(), disp_r_, fbox, pts3d);
   ptset_ = vgl_pointset_3d<float>(pts3d);
 }
 
@@ -149,18 +150,17 @@ bool bsgm_prob_pairwise_dsm::compute_dsm_and_ptset_prob(vgl_box_3d<double> const
   vgl_box_3d<float> fbox;
   fbox.add(pminf), fbox.add(pmaxf);
   float samp_dist = params_.point_sample_dist_;
-  //
-  //                              img0               img1     v
-  // in sgm disparity estimation img_targ(x,y) <-> img_ref( x + disp_target(x,y), y )
-  // the heightmap code requires  img1(u, v) <--> img0(u - disparity, v)
-  // thus the order is reversed                          ^
-  //
-  height_map_ =  bpgl_heightmap_from_disparity(rip_.rect_acam1(), rip_.rect_acam0(), disp_r_, scene_box, samp_dist);
-  height_map_reverse_ =  bpgl_heightmap_from_disparity(rip_.rect_acam0(), rip_.rect_acam1(), disp_r_reverse_, scene_box, samp_dist);
+  // std::cout << "mid z " << mid_z_ << std::endl;
+
+  //  std::cout << "forward hmap" << std::endl;
+  height_map_ =  bpgl_heightmap_from_disparity(rip_.rect_acam0(), rip_.rect_acam1(), disp_r_, scene_box, samp_dist);
+  //  std::cout << "reverse hmap" << std::endl;
+  height_map_reverse_ =  bpgl_heightmap_from_disparity(rip_.rect_acam1(), rip_.rect_acam0(), disp_r_reverse_, scene_box, samp_dist);
 
   std::vector<vgl_point_3d<float> > pts3d, pts3d_reverse;
-  bpgl_pointset_from_disparity(rip_.rect_acam1(), rip_.rect_acam0(), disp_r_, fbox, samp_dist, pts3d);
-  bpgl_pointset_from_disparity(rip_.rect_acam0(), rip_.rect_acam1(), disp_r_reverse_, fbox, samp_dist, pts3d_reverse);
+  bpgl_pointset_from_disparity(rip_.rect_acam0(), rip_.rect_acam1(), disp_r_, fbox, pts3d);
+  bpgl_pointset_from_disparity(rip_.rect_acam1(), rip_.rect_acam0(), disp_r_reverse_, fbox, pts3d_reverse);
+
   ptset_ = vgl_pointset_3d<float>(pts3d);
   ptset_reverse_ = vgl_pointset_3d<float>(pts3d_reverse);
   return this->compute_pointset_prob();
@@ -168,15 +168,18 @@ bool bsgm_prob_pairwise_dsm::compute_dsm_and_ptset_prob(vgl_box_3d<double> const
 
 static void map_prob_to_color(float prob, float& r, float& g, float& b)
 {
-    if(prob<0.0f) prob=0.0f;
-    else if(prob>1.0f) prob=1.0f;
-    float ncolors = static_cast<float>(bvrml_custom_color::heatmap_custom_size);
-    size_t color_index = static_cast<size_t>(prob*(ncolors-1));
-    if(color_index>=bvrml_custom_color::heatmap_custom_size)
-      color_index = bvrml_custom_color::heatmap_custom_size - 1;
-    r = static_cast<float>(bvrml_custom_color::heatmap_custom[color_index][0]);
-    g = static_cast<float>(bvrml_custom_color::heatmap_custom[color_index][1]);
-    b = static_cast<float>(bvrml_custom_color::heatmap_custom[color_index][2]);
+  if(prob<0.0f)
+    prob=0.0f;
+  else if(prob>1.0f)
+    prob=1.0f;
+
+  float ncolors = static_cast<float>(bvrml_custom_color::heatmap_custom_size);
+  size_t color_index = static_cast<size_t>(prob*(ncolors-1));
+  if(color_index>=bvrml_custom_color::heatmap_custom_size)
+    color_index = bvrml_custom_color::heatmap_custom_size - 1;
+  r = static_cast<float>(bvrml_custom_color::heatmap_custom[color_index][0]);
+  g = static_cast<float>(bvrml_custom_color::heatmap_custom[color_index][1]);
+  b = static_cast<float>(bvrml_custom_color::heatmap_custom[color_index][2]);
 }
 
 bool bsgm_prob_pairwise_dsm::save_prob_ptset_color(std::string const& path) const

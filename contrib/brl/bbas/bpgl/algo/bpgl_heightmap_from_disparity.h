@@ -12,12 +12,14 @@
 #include <vil/vil_image_view.h>
 
 /**
- * Given cameras for a stereo pair and a disparity map, return a 3-plane (x,y,z) 
+ * Given cameras for a stereo pair and a disparity map, return a 3-plane (x,y,z)
  * image containing the corresponding triangulated 3D points in the form z(x,y)
- * disparity should contain pixel offsets such that (img1(u, v) <--> img2(u - disparity, v)
+ * disparity should contain pixel offsets such that (img1(u, v) <--> img2(u + disparity, v)
+ * for example, given the pixel location (100, 200) in image1, and a disparity value of -20 at that location
+ * in the disparity image,x then the corresponding pixel location in image2 is (80, 200).
  **/
 template<class CAM_T>
-vil_image_view<float> 
+vil_image_view<float>
 bpgl_heightmap_from_disparity(CAM_T const& cam1, CAM_T const& cam2,
                               vil_image_view<float> disparity, vgl_box_3d<double> heightmap_bounds,
                               double ground_sample_distance);
@@ -26,7 +28,6 @@ template<class T, class CAM_T>
 void bpgl_pointset_from_disparity(CAM_T const& cam1, CAM_T const& cam2,
                                   vil_image_view<float> disparity,
                                   vgl_box_3d<T> heightmap_bounds,
-                                  T ground_sample_distance,
                                   std::vector<vgl_point_3d<T> >& ptset);
 
 #endif

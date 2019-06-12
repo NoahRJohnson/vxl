@@ -23,23 +23,21 @@ vpgl_lvcs::cs_names vpgl_lvcs::str_to_enum(const char* s)
   return vpgl_lvcs::NumNames;
 }
 
-void vpgl_lvcs::set_angle_conversions(AngUnits ang_unit, double& to_radians,
-                                      double& to_degrees)
+void vpgl_lvcs::get_angle_conversions(double& to_radians, double& to_degrees) const
 {
   to_radians=1.0;
   to_degrees=1.0;
-  if (ang_unit == DEG)
+  if (geo_angle_unit_ == DEG)
     to_radians = DEGREES_TO_RADIANS;
   else
     to_degrees = RADIANS_TO_DEGREES;
 }
 
-void vpgl_lvcs::set_length_conversions(LenUnits len_unit, double& to_meters,
-                                       double& to_feet)
+void vpgl_lvcs::get_length_conversions(double& to_meters, double& to_feet) const
 {
   to_meters = 1.0;
   to_feet = 1.0;
-  if (len_unit == FEET)
+  if (localXYZUnit_ == FEET)
     to_meters = FEET_TO_METERS;
   else
     to_feet = METERS_TO_FEET;
@@ -120,9 +118,8 @@ vpgl_lvcs::vpgl_lvcs(double orig_lat, double orig_lon, double orig_elev,
    theta_(theta)
 {
   double local_to_meters, local_to_feet, local_to_radians, local_to_degrees;
-  this->set_angle_conversions(geo_angle_unit_, local_to_radians,
-                              local_to_degrees);
-  this->set_length_conversions(localXYZUnit_, local_to_meters, local_to_feet);
+  this->get_angle_conversions(local_to_radians, local_to_degrees);
+  this->get_length_conversions(local_to_meters, local_to_feet);
 
   if (cs_name == vpgl_lvcs::utm) {
     //: the origin is still given in wgs84
@@ -152,9 +149,8 @@ vpgl_lvcs::vpgl_lvcs(double orig_lat, double orig_lon, double orig_elev,
     geo_angle_unit_(ang_unit), localXYZUnit_(len_unit), lox_(0), loy_(0), theta_(0)
 {
   double local_to_meters, local_to_feet, local_to_radians, local_to_degrees;
-  this->set_angle_conversions(geo_angle_unit_, local_to_radians,
-                              local_to_degrees);
-  this->set_length_conversions(localXYZUnit_, local_to_meters, local_to_feet);
+  this->get_angle_conversions(local_to_radians, local_to_degrees);
+  this->get_length_conversions(local_to_meters, local_to_feet);
 
   if (cs_name == vpgl_lvcs::utm) {
     //: the origin is still given in wgs84
@@ -187,9 +183,8 @@ vpgl_lvcs::vpgl_lvcs(double lat_low, double lon_low,
   localCSOriginLon_ = average_lon;
 
   double local_to_meters, local_to_feet, local_to_radians, local_to_degrees;
-  this->set_angle_conversions(geo_angle_unit_, local_to_radians,
-                              local_to_degrees);
-  this->set_length_conversions(localXYZUnit_, local_to_meters, local_to_feet);
+  this->get_angle_conversions(local_to_radians, local_to_degrees);
+  this->get_length_conversions(local_to_meters, local_to_feet);
 
   if (cs_name == vpgl_lvcs::utm) {
     //: the origin is still given in wgs84
@@ -204,19 +199,19 @@ vpgl_lvcs::vpgl_lvcs(double lat_low, double lon_low,
   this->compute_scale();
 }
 
-double vpgl_lvcs::radians_to_degrees(const double val)
+double vpgl_lvcs::radians_to_degrees(const double val) const
 {
   return val*RADIANS_TO_DEGREES;
 }
 
-void  vpgl_lvcs::radians_to_degrees(double& x, double& y, double& z)
+void  vpgl_lvcs::radians_to_degrees(double& x, double& y, double& z) const
 {
   x = x * RADIANS_TO_DEGREES;
   y = y * RADIANS_TO_DEGREES;
   z = z * RADIANS_TO_DEGREES;
 }
 
-void vpgl_lvcs::degrees_to_dms(double geoval, int& degrees, int& minutes, double& seconds)
+void vpgl_lvcs::degrees_to_dms(double geoval, int& degrees, int& minutes, double& seconds) const
 {
   double fmin = std::fabs(geoval - (int)geoval)*60.0;
   int isec = (int) ((fmin - (int)fmin)*60.0 + .5);
@@ -234,8 +229,8 @@ void vpgl_lvcs::compute_scale()
   double grs80_x, grs80_y, grs80_z;          // GRS80 coords of the origin
   double grs80_x1, grs80_y1, grs80_z1;
   double to_meters, to_feet, to_radians, to_degrees;
-  this->set_angle_conversions(geo_angle_unit_, to_radians, to_degrees);
-  this->set_length_conversions(localXYZUnit_, to_meters, to_feet);
+  this->get_angle_conversions(to_radians, to_degrees);
+  this->get_length_conversions(to_meters, to_feet);
   // Convert origin to WGS84
   switch (local_cs_name_)
   {
@@ -367,12 +362,11 @@ void vpgl_lvcs::local_to_global(const double pointin_x,
                                 double& pointout_z,
                                 AngUnits output_ang_unit,
                                 LenUnits output_len_unit
-                               )
+                               ) const
 {
   double local_to_meters, local_to_feet, local_to_radians, local_to_degrees;
-  this->set_angle_conversions(geo_angle_unit_, local_to_radians,
-                              local_to_degrees);
-  this->set_length_conversions(localXYZUnit_, local_to_meters, local_to_feet);
+  this->get_angle_conversions(local_to_radians, local_to_degrees);
+  this->get_length_conversions(local_to_meters, local_to_feet);
 
   double local_lat, local_lon, local_elev;
   double global_lat, global_lon, global_elev;
@@ -571,12 +565,12 @@ void vpgl_lvcs::global_to_local(const double pointin_lon,
                                 double& pointout_y,
                                 double& pointout_z,
                                 AngUnits input_ang_unit,
-                                LenUnits input_len_unit)
+                                LenUnits input_len_unit
+                               ) const
 {
   double local_to_meters, local_to_feet, local_to_radians, local_to_degrees;
-  this->set_angle_conversions(geo_angle_unit_, local_to_radians,
-                              local_to_degrees);
-  this->set_length_conversions(localXYZUnit_, local_to_meters, local_to_feet);
+  this->get_angle_conversions(local_to_radians, local_to_degrees);
+  this->get_length_conversions(local_to_meters, local_to_feet);
   double global_lat, global_lon, global_elev;
   double local_lat, local_lon, local_elev;
 
@@ -851,9 +845,8 @@ void vpgl_lvcs::read(std::istream& strm)
 
   if (local_cs_name_ == vpgl_lvcs::utm) {
     double local_to_meters, local_to_feet, local_to_radians, local_to_degrees;
-    this->set_angle_conversions(geo_angle_unit_, local_to_radians,
-                                local_to_degrees);
-    this->set_length_conversions(localXYZUnit_, local_to_meters, local_to_feet);
+    this->get_angle_conversions(local_to_radians, local_to_degrees);
+    this->get_length_conversions(local_to_meters, local_to_feet);
 
     //: the origin is still given in wgs84
     vpgl_utm u;
@@ -898,7 +891,7 @@ void vpgl_lvcs::write(std::ostream& strm)  // write just "read" would read
 
 //------------------------------------------------------------
 //: Transform from local co-ordinates to north=y,east=x.
-void vpgl_lvcs::local_transform(double& x, double& y)
+void vpgl_lvcs::local_transform(double& x, double& y) const
 {
   double theta=theta_;
   if (geo_angle_unit_ == DEG)
@@ -926,7 +919,7 @@ void vpgl_lvcs::local_transform(double& x, double& y)
 
 //------------------------------------------------------------
 //: Transform from north=y,east=x aligned axes to local co-ordinates.
-void vpgl_lvcs::inverse_local_transform(double& x, double& y)
+void vpgl_lvcs::inverse_local_transform(double& x, double& y) const
 {
   double theta=theta_;
   if (geo_angle_unit_ == DEG)
