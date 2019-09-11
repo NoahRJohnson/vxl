@@ -125,7 +125,7 @@ compute_warp_dimensions_offsets()
   corners_1[1] = vnl_vector_fixed<double, 3>(dni1,0,1);
   corners_1[2] = vnl_vector_fixed<double, 3>(dni1,dnj1,1);
   corners_1[3] = vnl_vector_fixed<double, 3>(0,dnj1,1);
-  for (size_t c = 0; c<4; ++c){
+   for(size_t c = 0; c<4; ++c){
     Hcorners_0[c] =  H0_*corners_0[c];
     Hcorners_0[c] /= Hcorners_0[c][2];
     Hcorners_1[c] =  H1_*corners_1[c];
@@ -172,7 +172,7 @@ compute_warp_dimensions_offsets()
 
 
 bool bpgl_rectify_affine_image_pair::
-compute_rectification(vgl_box_3d<double>const& scene_box)
+compute_rectification(vgl_box_3d<double>const& scene_box, size_t n_points, double average_z)
 {
   double min_x = scene_box.min_x();
   double min_y = scene_box.min_y();
@@ -181,22 +181,21 @@ compute_rectification(vgl_box_3d<double>const& scene_box)
   double ni1=  fview1_.ni(), nj1 = fview1_.nj();
   vnl_random rng;
   double z0 = 0.5*(scene_box.min_z() + scene_box.max_z());
-  if(vnl_math::isfinite(params_.min_disparity_z_))
-    z0 = params_.min_disparity_z_;
+  if(vnl_math::isfinite(average_z))
+    z0 = average_z;
   std::vector< vnl_vector_fixed<double, 3> > img_pts0, img_pts1;
-  for (unsigned i = 0; i < params_.n_points_; i++) {
+  for (unsigned i = 0; i < n_points; i++) {
     double x = rng.drand64()*width + min_x;  // sample in local coords
     double y = rng.drand64()*height + min_y;
     double u, v;
     acam0_.project(x,y,z0,u,v);
-    if(u>=0 && u<ni0 && v>=0 && v<nj0)
+  if(u>=0 || u<ni0||v>=0||v<nj0)
      img_pts0.emplace_back(u,v,1);
-    acam1_.project(x, y, z0, u, v);
-    if (u >= 0 && u<ni1 && v >= 0 && v<nj1)
+  acam1_.project(x, y, z0, u, v);
+  if (u >= 0 || u<ni1 || v >= 0 || v<nj1)
      img_pts1.emplace_back(u,v,1);
   }
-
-  // sanity check
+  // santity check
   bool epi_constraint = true;
   for (size_t k = 0; k < img_pts0.size(); ++k) {
     vnl_vector_fixed<double, 3> pr = img_pts0[0], line_l, pl = img_pts1[0];
@@ -219,7 +218,6 @@ compute_rectification(vgl_box_3d<double>const& scene_box)
     std::cout << "vpgl rectification produced singular homography(s)" << std::endl;
     return false;
   }
-
   // second sanity check
   bool equal_y = true;
   for (size_t k = 0; k < img_pts0.size()&&equal_y; ++k) {
@@ -234,7 +232,6 @@ compute_rectification(vgl_box_3d<double>const& scene_box)
     std::cout << "homographies do not map to equal row positions" << std::endl;
     return false;
   }
-
   // third sanity check
   double x_dif_sum = 0.0;
   for (size_t k = 0; k < img_pts0.size(); ++k) {
@@ -250,11 +247,9 @@ compute_rectification(vgl_box_3d<double>const& scene_box)
     std::cout << "homographies do not minimize column shift" << std::endl;
     return false;
   }
-
-  this->compute_warp_dimensions_offsets();
-
-  vnl_matrix_fixed<double, 3, 3> tr,sc;
-  tr.set_identity();
+ this->compute_warp_dimensions_offsets();
+ vnl_matrix_fixed<double, 3, 3> tr,sc;
+  tr.set_identity(); 
   tr[0][2] = -du_off_; tr[1][2] = -dv_off_;
   H0_ = tr*H0_;
   H1_ = tr*H1_;
@@ -272,10 +267,8 @@ compute_rectification(vgl_box_3d<double>const& scene_box)
 // provide the possibility of NAN as an invalid pixel value. Useful for subsequent
 // processing to avoid the invalid warp regions in the rectified image.
 void bpgl_rectify_affine_image_pair::
-warp_image(vil_image_view<float> fview,
-           vnl_matrix_fixed<double, 3, 3> const& H,
-           vil_image_view<float>& fwarp,
-           size_t out_ni, size_t out_nj)
+warp_image(vil_image_view<float> fview,  vnl_matrix_fixed<double, 3, 3> const& H,
+           vil_image_view<float>& fwarp, size_t out_ni, size_t out_nj)
 {
   size_t ni = fview.ni(), nj = fview.nj();
   double dni = static_cast<double>(ni);
@@ -304,4 +297,4 @@ warp_pair()
 {
   this->warp_image(fview0_, H0_, rect_fview0_, out_ni_, out_nj_);
   this->warp_image(fview1_, H1_, rect_fview1_, out_ni_, out_nj_);
-}
+ }

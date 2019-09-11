@@ -4,16 +4,11 @@
 #include <cmath>
 #include <algorithm>
 #include <set>
-
 #include <vul/vul_file.h>
-
 #include "acal_match_graph.h"
 
-
-acal_match_graph::acal_match_graph(
-    //       cam id i         cam id j            matches (i, j)
-    std::map<size_t, std::map<size_t, std::vector<acal_match_pair> > > const& incidence_matrix)
-{
+//                                            cam id i         cam id j               matches (i, j)
+acal_match_graph::acal_match_graph(std::map<size_t, std::map<size_t, std::vector<acal_match_pair> > > const& incidence_matrix){
   // construct vertices
   for(std::map<size_t, std::map<size_t, std::vector<acal_match_pair> > >::const_iterator iit = incidence_matrix.begin();
       iit != incidence_matrix.end(); ++iit){
@@ -28,7 +23,7 @@ acal_match_graph::acal_match_graph(
             match_vertices_[j] = std::make_shared<match_vertex>(j);
         }
   }
-
+    
   for(std::map<size_t, std::map<size_t, std::vector<acal_match_pair> > >::const_iterator iit = incidence_matrix.begin();
       iit != incidence_matrix.end(); ++iit){
     size_t i = iit->first;
@@ -47,11 +42,7 @@ acal_match_graph::acal_match_graph(
     }
   }
 }
-
-
-bool
-acal_match_graph::load_from_fmatches(std::string const& fmatches_path)
-{
+bool acal_match_graph::load_from_fmatches(std::string const& fmatches_path){
   std::map<size_t, std::map<size_t, std::vector<acal_match_pair> > > fmatches;
   std::map<size_t, std::string> image_paths;
   bool good = acal_f_utils::read_f_matches(fmatches_path, fmatches, image_paths);
@@ -61,27 +52,18 @@ acal_match_graph::load_from_fmatches(std::string const& fmatches_path)
   image_paths_ = image_paths;
   return true;
 }
-
-
-bool
-acal_match_graph::load_affine_cams(std::string const& affine_cam_path)
-{
+bool acal_match_graph::load_affine_cams(std::string const& affine_cam_path){
   return acal_f_utils::read_affine_cameras(affine_cam_path, all_acams_);
 }
 
+void acal_match_graph::clear_vertex_marks(){
 
-void
-acal_match_graph::clear_vertex_marks()
-{
   for(std::map<size_t, std::shared_ptr<match_vertex> >::iterator vit = match_vertices_.begin();
       vit != match_vertices_.end(); ++vit)
     (*vit).second->mark_ = false;
 }
 
-
-std::vector<std::shared_ptr<match_vertex> >
-acal_match_graph::adjacent_verts(std::shared_ptr<match_vertex> const& v)
-{
+std::vector<std::shared_ptr<match_vertex> > acal_match_graph::adjacent_verts(std::shared_ptr<match_vertex> const& v){
   std::vector<std::shared_ptr<match_vertex> > ret;
   for(std::vector<match_edge*>::iterator eit = v->edges_.begin();
       eit != v->edges_.end(); ++eit){
@@ -94,13 +76,7 @@ acal_match_graph::adjacent_verts(std::shared_ptr<match_vertex> const& v)
   }
   return ret;
 }
-
-
-void
-acal_match_graph::visit(
-    std::shared_ptr<match_vertex>& v,
-    std::vector<std::shared_ptr<match_vertex> >& comp)
-{
+void acal_match_graph::visit(std::shared_ptr<match_vertex>& v, std::vector<std::shared_ptr<match_vertex> >& comp){
   v->mark_ = true;
   comp.push_back(v);
   std::vector<std::shared_ptr<match_vertex> > adj_verts = adjacent_verts(v);
@@ -111,11 +87,8 @@ acal_match_graph::visit(
     visit(*vit,comp);
   }
 }
-
-
-void
-acal_match_graph::find_connected_components()
-{
+ 
+void acal_match_graph::find_connected_components(){
   this->clear_vertex_marks();
   for(std::map<size_t, std::shared_ptr<match_vertex> >::iterator vit = match_vertices_.begin();
       vit != match_vertices_.end(); ++vit){
@@ -127,24 +100,21 @@ acal_match_graph::find_connected_components()
       conn_comps_.push_back(comp);
   }
 }
-
-
-void
-acal_match_graph::set_intersect_match_edge(
-    std::shared_ptr<match_vertex> const& focus_vert,
-    match_edge* e,
-    std::vector<acal_corr>& focus_corrs,
-    std::map<size_t, std::vector<acal_corr> >& other_corrs)
+void acal_match_graph::set_intersect_match_edge(std::shared_ptr<match_vertex> const& focus_vert,
+                                                  match_edge* e,
+                                                  std::vector<acal_corr>& focus_corrs,
+                                                  std::map<size_t, std::vector<acal_corr> >& other_corrs
+                                                  )
 {
   size_t fid = focus_vert->cam_id_; // focus cam id
   size_t oid = -1;   //other cam id
   std::shared_ptr<match_vertex> v0 = e->v0_, v1 = e->v1_; //edge verts
   size_t nm = e->matches_.size();
-  if (nm == 0)
+  if(nm == 0)
     return; //e has no matches - shouldn't happen
 
   // initialization step for first call
-  if (focus_corrs.size() == 0 && other_corrs.size() == 0){
+  if(focus_corrs.size() == 0 && other_corrs.size() == 0){
     focus_corrs.resize(nm);
     if(v0->cam_id_ == fid){// is v0 the focus vertex?
       oid = v1->cam_id_;
@@ -169,7 +139,7 @@ acal_match_graph::set_intersect_match_edge(
   // intersect correspondences of e with current correspondence sets
   std::vector<acal_corr> inter_focus_corrs; //focus corrs after intersection
   std::map<size_t, std::vector<acal_corr> > inter_other_corrs; //other camera corrs after intersection
-  if (v0->cam_id_ == fid){ // idx1, uv1 are assigned to focus
+  if(v0->cam_id_ == fid){ // idx1, uv1 are assigned to focus
     oid = v1->cam_id_;
     for(size_t m = 0; m<nm; ++m){
         const acal_match_pair& pr = e->matches_[m];
@@ -185,9 +155,9 @@ acal_match_graph::set_intersect_match_edge(
           inter_other_corrs[oid].push_back(pr.corr2_);
         }
     }
-  } else {// idx2, uv2 are assigned to focus
+  }else{// idx2, uv2 are assigned to focus
     oid = v0->cam_id_;
-    for (size_t m = 0; m<nm; ++m){
+    for(size_t m = 0; m<nm; ++m){
       const acal_match_pair& pr = e->matches_[m];
       size_t idf = pr.corr2_.id_, ido = pr.corr1_.id_;
 
@@ -196,7 +166,7 @@ acal_match_graph::set_intersect_match_edge(
             fit != focus_corrs.end()&&!found; ++fit)
           found = (*fit).id_ == idf;
 
-      if (found){
+      if(found){
         inter_focus_corrs.push_back(pr.corr2_);
         inter_other_corrs[oid].push_back(pr.corr1_);
       }
@@ -205,13 +175,13 @@ acal_match_graph::set_intersect_match_edge(
 
   // other cam, oid, is up to date but need to remove correspondences from other cams
   size_t nif = inter_focus_corrs.size();
-  for (std::map<size_t, std::vector<acal_corr > >::iterator cit = other_corrs.begin();
+  for(std::map<size_t, std::vector<acal_corr > >::iterator cit = other_corrs.begin();
       cit != other_corrs.end(); ++cit){
     size_t ocam_id = cit->first;
     std::vector<acal_corr> pruned_other_corrs;
     const std::vector<acal_corr>& cur_ocorrs = cit->second;
     size_t noc = cur_ocorrs.size();
-
+    
     std::vector<acal_corr> otemp;
 
     size_t nf = focus_corrs.size();
@@ -242,14 +212,11 @@ acal_match_graph::set_intersect_match_edge(
   focus_corrs = inter_focus_corrs;
 }
 
+bool acal_match_graph::find_joint_tracks(std::shared_ptr<match_vertex> const& focus_vert,
+                                           std::vector< std::map<size_t, vgl_point_2d<double> > >& joint_tracks,
+                                           //   track            cam_id      correspondence
+                                           size_t min_n_tracks){
 
-bool
-acal_match_graph::find_joint_tracks(
-    std::shared_ptr<match_vertex> const& focus_vert,
-    //   track            cam_id  correspondence
-    std::vector< std::map<size_t, vgl_point_2d<double> > >& joint_tracks,
-    size_t min_n_tracks)
-{
   //    tracks for focus vert
   std::vector<acal_corr> focus_corrs;
   //   other cam id      tracks on other cam
@@ -300,10 +267,7 @@ acal_match_graph::find_joint_tracks(
   return true;
 }
 
-
-void
-acal_match_graph::compute_focus_tracks()
-{
+void acal_match_graph::compute_focus_tracks() {
   size_t nc = conn_comps_.size();
   focus_track_metric_.resize(nc, 0.0);
   for (size_t c = 0; c < nc; ++c) {
@@ -318,7 +282,7 @@ acal_match_graph::compute_focus_tracks()
       std::shared_ptr<match_vertex>  focus_v = conn_comps_[c][i];
       if (!focus_v)
         continue;
-
+      
       //    track          cam_id   correspondence location
       std::vector< std::map<size_t, vgl_point_2d<double> > > joint_tracks;
       if (!find_joint_tracks(focus_v, joint_tracks, params_.min_n_tracks_))
@@ -339,10 +303,7 @@ acal_match_graph::compute_focus_tracks()
     focus_tracks_[c] = c_tracks;
   }
 }
-
-
-void acal_match_graph::compute_match_trees()
-{
+void acal_match_graph::compute_match_trees(){
   size_t nc = conn_comps_.size();
   // iterate over all the connected components
   for (size_t c = 0; c < nc; ++c) {
@@ -396,7 +357,7 @@ void acal_match_graph::compute_match_trees()
             parent_id = id1; child_id = id0;
             acal_match_utils::reverse(match_pairs);
           }
-          // try to add the child to a node of the current tree
+          // try to add the child to a node of the current tree 
           if(mt_ptr->add_child_node(parent_id, child_id, match_pairs))
             if(id1 == aidx) // if success then add child node as an active vertex
               active_verts[id0] = edge->v0_;
@@ -411,10 +372,7 @@ void acal_match_graph::compute_match_trees()
   } // end conn-comp
 }
 
-
-bool
-acal_match_graph::valid_tree(std::shared_ptr<acal_match_tree> const& mtree)
-{
+bool acal_match_graph::valid_tree(std::shared_ptr<acal_match_tree> const& mtree){
   if(mtree->size() == 0)
     return false;
   std::vector< std::map<size_t, vgl_point_2d<double> > > tracks = mtree->tracks();
@@ -460,9 +418,7 @@ acal_match_graph::valid_tree(std::shared_ptr<acal_match_tree> const& mtree)
 }
 
 
-void
-acal_match_graph::validate_match_trees_and_set_metric()
-{
+void acal_match_graph::validate_match_trees_and_set_metric(){
   size_t ncc = conn_comps_.size();
   match_tree_metric_.clear();
   match_tree_metric_.resize(ncc, 0);
@@ -471,7 +427,7 @@ acal_match_graph::validate_match_trees_and_set_metric()
     std::map<size_t, std::shared_ptr<acal_match_tree> > temp;
     if(mtrees.size()==0){
       std::cout << "no match trees for connected component " << cc << std::endl;
-    }
+    }  
     for (std::map<size_t, std::shared_ptr<acal_match_tree> >::iterator trit = mtrees.begin();
          trit != mtrees.end(); ++trit) {
       if (valid_tree(trit->second))
@@ -484,28 +440,21 @@ acal_match_graph::validate_match_trees_and_set_metric()
     match_tree_metric_[cc] = best_tree->size();
   }
 }
-
-
 // the predicate that orders based on number of cameras in the tree
-static bool
-tree_size_greater(std::pair<size_t, std::shared_ptr<acal_match_tree> > const a,
-                  std::pair<size_t, std::shared_ptr<acal_match_tree> > const b)
-{
+
+static bool tree_size_greater(std::pair<size_t, std::shared_ptr<acal_match_tree> > const a,
+                              std::pair<size_t, std::shared_ptr<acal_match_tree> > const b){
   return a.second->n_ > b.second->n_;
 }
-
-
 // sort the trees on number of cameras and return the first tree in the sorted list
-std::shared_ptr<acal_match_tree>
-acal_match_graph::largest_tree(size_t conn_comp_index)
-{
+std::shared_ptr<acal_match_tree> acal_match_graph::largest_tree(size_t conn_comp_index){
   if(conn_comp_index == -1)
     return std::shared_ptr<acal_match_tree>();
   std::map<size_t, std::shared_ptr<acal_match_tree> > & mtrees = match_trees_[conn_comp_index];
   if(mtrees.size()==0){
     std::cout << "no match trees for connected component " << conn_comp_index << std::endl;
     return std::shared_ptr<acal_match_tree>();
-  }
+  }  
   std::vector<std::pair<size_t, std::shared_ptr<acal_match_tree> > > trees;
   for (std::map<size_t, std::shared_ptr<acal_match_tree> >::iterator mit = mtrees.begin();
 	  mit != mtrees.end(); ++mit) {
@@ -516,10 +465,7 @@ acal_match_graph::largest_tree(size_t conn_comp_index)
   return trees[0].second;
 }
 
-
-void
-acal_match_graph::print_connected_components()
-{
+void acal_match_graph::print_connected_components(){
   size_t nc = conn_comps_.size();
   for(size_t c =0; c<nc; ++c){
     std::cout << "\nconnected component " << c <<
@@ -537,11 +483,7 @@ acal_match_graph::print_connected_components()
     std::cout << std::endl;
   }
 }
-
-
-void
-acal_match_graph::print_n_tracks_for_conn_comp()
-{
+void acal_match_graph::print_n_tracks_for_conn_comp(){
     size_t nc = conn_comps_.size();
   for(size_t c =0; c<nc; ++c){
     std::cout << "\nconnected component " << c <<  std::endl;
@@ -556,11 +498,8 @@ acal_match_graph::print_n_tracks_for_conn_comp()
     }
   }
 }
-
-
-void
-acal_match_graph::print_focus_tracks()
-{
+        
+void acal_match_graph::print_focus_tracks(){
   std::cout << "\n======focus vertex tracks=======" << std::endl;
   //         conn comp        focus vert      tracks          cam id     track point
   for(std::map<size_t, std::map<size_t, std::vector< std::map<size_t, vgl_point_2d<double> > > > >::iterator cit = focus_tracks_.begin();
@@ -569,9 +508,9 @@ acal_match_graph::print_focus_tracks()
     std::cout << "\nconnected component " << cc << std::endl;
     const std::map<size_t, std::vector< std::map<size_t, vgl_point_2d<double> > > >& ftemp = cit->second;
     for(std::map<size_t, std::vector< std::map<size_t, vgl_point_2d<double> > > >::const_iterator fit = ftemp.begin();
-        fit != ftemp.end(); ++fit) {
+        fit != ftemp.end(); ++fit){
       size_t focus_id = fit->first;
-      std::cout << "<<<<<focus camera id " << focus_id << std::endl;
+      std::cout << ">>>>focus camera id " << focus_id << std::endl;
       const std::vector< std::map<size_t, vgl_point_2d<double> > >& tr_temp = fit->second;
       size_t t = 0;
       for(std::vector< std::map<size_t, vgl_point_2d<double> > >::const_iterator trit = tr_temp.begin();
@@ -579,7 +518,7 @@ acal_match_graph::print_focus_tracks()
         std::cout << "   track  " << t << std::endl;
         const std::map<size_t, vgl_point_2d<double> >& tcorrs = *trit;
         for(std::map<size_t, vgl_point_2d<double> >::const_iterator cmpit = tcorrs.begin();
-            cmpit != tcorrs.end(); ++cmpit) {
+            cmpit != tcorrs.end(); ++cmpit){
           std::cout << "     " << cmpit->first << ' ' << cmpit->second.x() << ' ' << cmpit->second.y() << std::endl;
         }
       }
@@ -589,9 +528,7 @@ acal_match_graph::print_focus_tracks()
 }
 
 
-void
-acal_match_graph::adjust_affine_cams(std::map<size_t, vgl_vector_2d<double> >& cam_translations)
-{
+void acal_match_graph::adjust_affine_cams(std::map<size_t, vgl_vector_2d<double> >& cam_translations){
   for(std::map<size_t, vgl_vector_2d<double> >::iterator cit = cam_translations.begin();
       cit != cam_translations.end(); ++cit){
     size_t cidx = cit->first;
@@ -604,10 +541,7 @@ acal_match_graph::adjust_affine_cams(std::map<size_t, vgl_vector_2d<double> >& c
   }
 }
 
-
-bool
-acal_match_graph::save_graph_dot_format(std::string const& path)
-{
+bool acal_match_graph::save_graph_dot_format(std::string const& path){
   std::ofstream ostr(path.c_str());
   if(!ostr){
     std::cout << "Can't open " << path << " to write dot file" << std::endl;
@@ -615,7 +549,7 @@ acal_match_graph::save_graph_dot_format(std::string const& path)
   }
   ostr << "graph" << std::endl;
   ostr << "graphN {" << std::endl;
-
+    
   size_t ne = match_edges_.size();
   if(!ne){
     std::cout << "no edges in graph" << std::endl;
@@ -649,7 +583,7 @@ acal_match_graph::save_graph_dot_format(std::string const& path)
       return false;
     }
     ccomp[cc].push_back(ss.str());
-  }
+  }    
 
   for(size_t c = 0; c<ncc; ++c){
     std::stringstream scc;
@@ -659,16 +593,13 @@ acal_match_graph::save_graph_dot_format(std::string const& path)
     for(size_t s = 0; s<ccomp[c].size();++s)
       ostr << ccomp[c][s] << std::endl;
     ostr << "}" << std::endl;
-  }
+  }    
   ostr << "}" << std::endl;
   ostr.close();
   return true;
 }
 
-
-bool
-acal_match_graph::save_focus_graphs_dot_format(size_t ccomp_index, std::string const& path)
-{
+bool acal_match_graph::save_focus_graphs_dot_format(size_t ccomp_index, std::string const& path){
   std::ofstream ostr(path.c_str());
   if(!ostr){
     std::cout << "Can't open " << path << " to write dot file" << std::endl;
@@ -676,7 +607,7 @@ acal_match_graph::save_focus_graphs_dot_format(size_t ccomp_index, std::string c
   }
   ostr << "graph" << std::endl;
   ostr << "graphN {" << std::endl;
-
+  
   std::map<size_t, std::vector< std::map<size_t, vgl_point_2d<double> > > >& ftrk = focus_tracks_[ccomp_index];
   if(ftrk.size()==0){
     std::cout << "no focus tracks for connected component " << ccomp_index << std::endl;
@@ -707,11 +638,9 @@ acal_match_graph::save_focus_graphs_dot_format(size_t ccomp_index, std::string c
   ostr.close();
   return true;
 }
+ 
 
-
-bool
-acal_match_graph::save_match_trees_dot_format(size_t ccomp_index, std::string const& path, size_t num_trees)
-{
+bool acal_match_graph::save_match_trees_dot_format(size_t ccomp_index, std::string const& path, size_t num_trees){
   std::ofstream ostr(path.c_str());
   if(!ostr){
     std::cout << "Can't open " << path << " to write dot file" << std::endl;
@@ -719,7 +648,7 @@ acal_match_graph::save_match_trees_dot_format(size_t ccomp_index, std::string co
   }
   ostr << "graph" << std::endl;
   ostr << "graphN {" << std::endl;
-
+  
   std::map<size_t, std::shared_ptr<acal_match_tree> > & mtrees = match_trees_[ccomp_index];
   if(mtrees.size()==0){
     std::cout << "no focus trees for connected component " << ccomp_index << std::endl;
@@ -750,11 +679,7 @@ acal_match_graph::save_match_trees_dot_format(size_t ccomp_index, std::string co
   ostr.close();
   return true;
 }
-
-
-std::map<size_t, std::string>
-acal_match_graph::image_names()
-{
+std::map<size_t, std::string> acal_match_graph::image_names(){
   std::map<size_t, std::string> ret;
   for(std::map<size_t, std::string>::iterator sit = image_paths_.begin();
       sit != image_paths_.end(); ++sit){
@@ -766,15 +691,11 @@ acal_match_graph::image_names()
   }
   return ret;
 }
-
-
-std::vector<std::shared_ptr<acal_match_tree> >
-acal_match_graph::trees(size_t conn_comp_index)
-{
+std::vector<std::shared_ptr<acal_match_tree> > acal_match_graph::trees(size_t conn_comp_index){
   std::vector<std::shared_ptr<acal_match_tree> > ret;
   //      focus cam id               tree
   std::map<size_t, std::shared_ptr<acal_match_tree> > trees = match_trees_[conn_comp_index];
-
+    
   for(std::map<size_t, std::shared_ptr<acal_match_tree> >::iterator mit = trees.begin();
       mit != trees.end(); ++mit)
     ret.push_back(mit->second);

@@ -60,13 +60,23 @@ class acal_planar_feature_matcher
 {
  public:
   acal_planar_feature_matcher() {}
-  acal_planar_feature_matcher(planar_feature_params const& params){params_ = params;}
-  bool load_solved_images(std::map<size_t, std::string>& solved_image_names, std::string const& img_cam_dir, std::string const& ext);
-  bool load_solved_affine_cams(std::string const& img_cam_dir, std::string const& corrected_affine_cam_postfix);
-  void set_solved_affine_cams(std::map<size_t, vpgl_affine_camera<double> > solved_cams){solved_cams_ = solved_cams;}
-  void set_track_cam_ids(std::vector<size_t> const& track_cams){track_cams_ = track_cams;}
-  void set_track_3d_points(std::map<size_t, vgl_point_3d<double> > const& track_3d_pts){track_3d_pts_ = track_3d_pts;}
-  planar_feature_params params(){return params_;}
+  acal_planar_feature_matcher(planar_feature_params const& params)
+    {params_ = params;}
+
+  // Load images/cams
+  bool load_solved_images(std::map<size_t, std::string>& solved_image_paths);
+  bool load_solved_affine_cams(std::map<size_t, std::string>& solved_aff_cam_paths);
+
+  // Set images/cams
+  void set_solved_affine_cams(std::map<size_t, vpgl_affine_camera<double> > solved_cams)
+    {solved_cams_ = solved_cams;}
+  void set_track_cam_ids(std::vector<size_t> const& track_cams)
+    {track_cams_ = track_cams;}
+  void set_track_3d_points(std::map<size_t, vgl_point_3d<double> > const& track_3d_pts)
+    {track_3d_pts_ = track_3d_pts;}
+  planar_feature_params params()
+    {return params_;}
+
   void backproject_patch(vil_image_view<vxl_byte> const& view, vpgl_affine_camera<double> const& cam,
                          vgl_point_3d<double> const& p3d, vil_image_view<vxl_byte>& patch, double u_off=0.0, double v_off=0.0);
   bool generate_image_patches();
@@ -88,7 +98,7 @@ class acal_planar_feature_matcher
   vgl_vector_2d<double> median_translation() { return median_translation_; }
   planar_match_score match_score_stats(){return match_score_stats_;}
 
-  //debug
+  // debug
   bool solved_cam(size_t cam_id, vpgl_affine_camera<double>& cam){
     if(solved_cams_.count(cam_id) == 0){
       std::cout << cam_id << " is not in the set of solved cameras"<< std::endl;
@@ -103,7 +113,6 @@ class acal_planar_feature_matcher
 
  private:
   planar_feature_params params_;
-  std::map<size_t, std::string> solved_inames_;
   std::map<size_t, vil_image_view<vxl_byte> > solved_images_;
   std::map<size_t, vpgl_affine_camera<double> > solved_cams_;
   std::vector<size_t> track_cams_;

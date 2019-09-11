@@ -38,6 +38,7 @@ int main(int argc,char * argv[])
   // report parameters
   std::cout << params << std::endl;
 
+
   // Usage information
   if( argc != 8 && argc != 9 ){
     std::cout << "Usage : bsgm_app.exe target_img ref_img disp_img "
@@ -111,6 +112,7 @@ int main(int argc,char * argv[])
     if (!sgm.compute_both(img_right, img_left, invalid_right, invalid_left,
       min_disparity_inv, invalid_disp_inv, multi_scale_mode,
       disp_right, disp_left)) {
+
     //if( !sgm.compute( img_right, img_left, invalid_right,
     //    min_disparity_inv, invalid_disp_inv, multi_scale_mode, disp_right ) ){
       std::cerr << "SGM failed\n";

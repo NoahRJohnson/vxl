@@ -62,6 +62,7 @@ class bsgm_multiscale_disparity_estimator
     bool skip_error_check = false);
 
   //: Same as above, except compute disparity maps for both images and use a
+
   // full left-right consistency check to detect and fix errors in the
   // disparity maps.
   bool compute_both(
@@ -73,6 +74,7 @@ class bsgm_multiscale_disparity_estimator
     float invalid_disparity,
     int const& multi_scale_mode,
     vil_image_view<float>& disp_target,
+
     vil_image_view<float>& disp_ref);
 
   //: Write out the appearance or total cost volume as a set of images for

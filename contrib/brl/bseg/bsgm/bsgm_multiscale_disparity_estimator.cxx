@@ -240,6 +240,7 @@ bsgm_multiscale_disparity_estimator::compute(
   // Run fine-scale SGM
   if( !fine_de_->compute( img_tar, img_ref, invalid_tar,
       min_disp_img_fine, invalid_disp, disp_tar, skip_error_check ) )
+
     return false;
 
   //fine_de_->write_cost_debug_imgs( std::string("C:/data/results"), true );
@@ -259,6 +260,7 @@ bsgm_multiscale_disparity_estimator::compute_both(
   float invalid_disparity,
   int const& multi_scale_mode,
   vil_image_view<float>& disp_tar,
+
   vil_image_view<float>& disp_ref)
 {
   // Compute disparity maps for both images
