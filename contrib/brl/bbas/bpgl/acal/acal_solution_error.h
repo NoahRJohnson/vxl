@@ -22,6 +22,7 @@ class acal_solution_error
     min_eps_u_(0.0), min_eps_v_(0.0),
     max_eps_u_(0.0), max_eps_v_(0.0),
     rms_err_u_(0.0),rms_err_v_(0.0) {}
+
   acal_solution_error(double min_eps_u, double min_eps_v,
                       double max_eps_u, double max_eps_v,
                       double rms_err_u,  double rms_err_v):

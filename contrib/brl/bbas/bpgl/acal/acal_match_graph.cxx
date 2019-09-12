@@ -149,7 +149,7 @@ acal_match_graph::set_intersect_match_edge(
     } else {  // v1 is the focus vertex
       oid = v0->cam_id_;
       other_corrs[oid].resize(nm);
-      for (size_t m = 0; m<nm; ++m){// idx2, uv2 are focus corrs
+      for (size_t m = 0; m<nm; ++m) {  // idx2, uv2 are focus corrs
         const acal_match_pair& pr = e->matches_[m];
         focus_corrs[m] = pr.corr2_;
         other_corrs[oid][m] = pr.corr1_;
@@ -163,7 +163,7 @@ acal_match_graph::set_intersect_match_edge(
   std::map<size_t, std::vector<acal_corr> > inter_other_corrs; //other camera corrs after intersection
   if (v0->cam_id_ == fid) { // idx1, uv1 are assigned to focus
     oid = v1->cam_id_;
-    for (size_t m = 0; m<nm; ++m){
+    for (size_t m = 0; m<nm; ++m) {
         const acal_match_pair& pr = e->matches_[m];
         size_t idf = pr.corr1_.id_, ido = pr.corr2_.id_;
 
@@ -355,7 +355,7 @@ acal_match_graph::compute_match_trees()
       bool first = true;
       // construct the match tree from all reachable vertices
       // from f_vert in connected component c
-      while(active_verts.size()>0){
+      while (active_verts.size() > 0) {
         size_t aidx = (active_verts.begin())->first;
         // has active vertex aidx already been explored?
         std::set<size_t>::iterator uit;

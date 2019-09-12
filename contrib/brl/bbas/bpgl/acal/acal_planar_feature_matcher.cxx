@@ -28,7 +28,7 @@ acal_planar_feature_matcher::load_solved_images(
     size_t idx = iit->first;
     std::string ipath = iit->second;
 
-    // Load the image with VIL
+    // Load the image view
     vil_image_view<vxl_byte> view = vil_load(ipath.c_str());
     if (view.ni() == 0) {
       std::cout << "Couldn't load image from " << ipath << std::endl;
@@ -209,8 +209,8 @@ acal_planar_feature_matcher::local_maximum(
   max_score = -std::numeric_limits<double>::max();
   double max_du = 0.0, max_dv = 0.0;
   double u0 = grid_center.x(), v0 = grid_center.y();
-  for (double dv = -radius; dv <= radius; dv+=grid_increment){
-    for (double du = -radius; du <= radius; du+=grid_increment){
+  for (double dv = -radius; dv <= radius; dv+=grid_increment) {
+    for (double du = -radius; du <= radius; du+=grid_increment) {
       vil_image_view<vxl_byte> mpatch;
       this->backproject_patch(img, cam, p3d, mpatch, u0+du, v0+dv);
       double s = 0.0;
@@ -347,8 +347,10 @@ acal_planar_feature_matcher::compute_scores_stats_median_trans()
   this->median_translation_.set(u_trans[mid], v_trans[mid]);
   this->match_score_stats_.median_score_ = scores[mid];
 
-  this->match_score_stats_.min_score_ = min_score;   match_score_stats_.max_score_ = max_score;
-  this->match_score_stats_.mean_score_ = mean_score; match_score_stats_.score_std_dev_ = score_std_dev;
+  this->match_score_stats_.min_score_ = min_score;
+  this->match_score_stats_.max_score_ = max_score;
+  this->match_score_stats_.mean_score_ = mean_score;
+  this->match_score_stats_.score_std_dev_ = score_std_dev;
 }
 
 

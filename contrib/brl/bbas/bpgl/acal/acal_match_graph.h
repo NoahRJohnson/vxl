@@ -105,6 +105,7 @@ class acal_match_graph
   void validate_match_trees_and_set_metric();
   std::shared_ptr<acal_match_tree> largest_tree(size_t conn_comp_index);
   std::vector<std::shared_ptr<acal_match_tree> > trees(size_t conn_comp_index);
+
   std::shared_ptr<match_vertex> vert(size_t index){return match_vertices_[index];}
   std::map<size_t, std::shared_ptr<match_vertex> >& vertices(){return match_vertices_;}
 
@@ -121,6 +122,7 @@ class acal_match_graph
   size_t match_tree_metric(size_t conn_comp_index) const {return match_tree_metric_[conn_comp_index];}
 
   std::map<size_t, std::string> image_names();
+
   //: debug
   void print_connected_components();
   void print_n_tracks_for_conn_comp();
@@ -141,10 +143,11 @@ class acal_match_graph
   //     c_comp id     focus cam id      track          cam_id   correspondence
   std::map<size_t, std::map<size_t, std::vector< std::map<size_t, vgl_point_2d<double> > > > > focus_tracks_;
   std::vector<double> focus_track_metric_;
-  //       c_comp id     focus cam id      tree
+  //     c_comp id     focus cam id      tree
   std::map<size_t, std::map<size_t, std::shared_ptr<acal_match_tree> > > match_trees_;
   //   c_comp
   std::vector<size_t> match_tree_metric_;
+
 };
 
 #endif

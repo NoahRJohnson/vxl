@@ -197,6 +197,7 @@ compute_rectification(vgl_box_3d<double>const& scene_box, size_t n_points, doubl
     if (u >= 0 && u < ni1 && v >= 0 && v < nj1)
       img_pts1.emplace_back(u,v,1);
   }
+
   // sanity check
   bool epi_constraint = true;
   for (size_t k = 0; k < img_pts0.size(); ++k) {
@@ -291,7 +292,7 @@ warp_image(vil_image_view<float> fview,
       vnl_vector_fixed<double, 3> pix(du, dv, 1), hpix;
       hpix = Hinv*pix;
       double du_h = hpix[0]/hpix[2], dv_h = hpix[1]/hpix[2];
-      if (du_h <0.0 || du_h >= dni || dv_h<0.0 ||dv_h >= dnj)
+      if (du_h < 0.0 || du_h >= dni || dv_h < 0.0 ||dv_h >= dnj)
         continue;
       //float fval = vil_bilin_interp_safe_extend(fview, du_h, dv_h);
       float fval = vil_bicub_interp_safe_extend(fview, du_h, dv_h);

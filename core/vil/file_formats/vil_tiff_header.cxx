@@ -136,7 +136,7 @@ bool vil_tiff_header::read_header()
     for (unsigned i = 0; i < size; ++i)
     {
       std::vector<vxl_uint_16> rgb(3);
-      rgb[0] = cm[0][i];  rgb[1] = cm[1][i];  rgb[2] = cm[2][i];
+      rgb[0] = cm[0][i]; rgb[1] = cm[1][i]; rgb[2] = cm[2][i];
       color_map[i] = rgb;
 #ifdef DEBUG
       std::cout << "RGB[" << i << "]=(" << rgb[0] << ' ' << rgb[1] << ' ' << rgb[2] << ")\n";
@@ -155,7 +155,7 @@ bool vil_tiff_header::read_header()
   extra_samples.valid = false;
   int const ret_extrasamples = TIFFGetField(tif_, TIFFTAG_EXTRASAMPLES, &extra_samples.val, &sample_info);
   if (ret_extrasamples && extra_samples.val > 0)
-      extra_samples.valid = true;
+    extra_samples.valid = true;
 
   read_short_tag(tif_, TIFFTAG_FILLORDER, fill_order);
   vxl_uint_16* gc = nullptr;
@@ -192,12 +192,12 @@ bool vil_tiff_header::read_header()
 #ifdef DEBUG
   if (rows_per_strip.valid)
   {
-      strip_offsets_valid =
-        TIFFGetField(tif_, TIFFTAG_STRIPOFFSETS, &strip_offsets) > 0;
-      //      vxl_uint_32 size = strips_per_image()*samples_per_pixel.val;
-      vxl_uint_32 size = strips_per_image();
-      for (vxl_uint_32 i = 0; i < size; ++i)
-        std::cout << "SOFF[" << i << "]=" << strip_offsets[i] << '\n';
+    strip_offsets_valid =
+      TIFFGetField(tif_, TIFFTAG_STRIPOFFSETS, &strip_offsets) > 0;
+    //      vxl_uint_32 size = strips_per_image()*samples_per_pixel.val;
+    vxl_uint_32 size = strips_per_image();
+    for (vxl_uint_32 i = 0; i < size; ++i)
+      std::cout << "SOFF[" << i << "]=" << strip_offsets[i] << '\n';
   }
 #endif
   read_short_tag(tif_, TIFFTAG_THRESHHOLDING, thresholding);
