@@ -24,6 +24,11 @@
 #include "acal_f_utils.h"
 #include "acal_match_tree.h"
 
+// forward declarations
+struct match_params;
+class match_vertex;
+class match_edge;
+
 struct match_params
 {
   match_params() : min_n_tracks_(3), min_n_cams_(3), max_proj_error_(1.0), max_uncal_proj_error_(20.0) {}
@@ -34,32 +39,15 @@ struct match_params
   double max_uncal_proj_error_;
 };
 
-class match_vertex;
-class match_edge
+class match_vertex
 {
- public:
-  match_edge(): id_(-1) {}
-  match_edge(std::shared_ptr<match_vertex> v0,
-             std::shared_ptr<match_vertex> v1,
-             std::vector<acal_match_pair> const& matches,
-             size_t id = 0):
-    v0_(v0), v1_(v1), matches_(matches), id_(id){}
-
-  size_t id_;
-  std::vector<acal_match_pair>  matches_;
-  std::shared_ptr<match_vertex> v0_;
-  std::shared_ptr<match_vertex> v1_;
-};
-
-
-class match_vertex {
  public:
   match_vertex(): cam_id_(-1), mark_(false) {}
   match_vertex(size_t cam_id): cam_id_(cam_id), mark_(false) {}
 
   void add_edge(match_edge* edge) {
     std::vector<match_edge* >::iterator eit;
-    eit = std::find( edges_.begin(), edges_.end(), edge);
+    eit = std::find(edges_.begin(), edges_.end(), edge);
     if (eit == edges_.end())
       edges_.push_back(edge);
   }
@@ -75,6 +63,23 @@ class match_vertex {
   bool mark_;
   std::vector<match_edge*> edges_;
 };
+
+class match_edge
+{
+ public:
+  match_edge(): id_(-1) {}
+  match_edge(std::shared_ptr<match_vertex> v0,
+             std::shared_ptr<match_vertex> v1,
+             std::vector<acal_match_pair> const& matches,
+             size_t id = 0):
+    v0_(v0), v1_(v1), matches_(matches), id_(id) {}
+
+  size_t id_;
+  std::vector<acal_match_pair>  matches_;
+  std::shared_ptr<match_vertex> v0_;
+  std::shared_ptr<match_vertex> v1_;
+};
+
 
 class acal_match_graph
 {
