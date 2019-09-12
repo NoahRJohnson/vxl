@@ -1,4 +1,4 @@
-// This is bsgm/bsgm_prob_pairwise_dsm.h
+// This is brl/bseg/bsgm/bsgm_prob_pairwise_dsm.h
 #ifndef bsgm_prob_pairwise_dsm_h
 #define bsgm_prob_pairwise_dsm_h
 
@@ -33,7 +33,7 @@
 //
 // given a pixel (1182, 897) in rect_bview0 and the dispairity value at that location in the dispairity image,
 // disp_r_, of -15.0, the corresponding pixel in rect_bview1 is (1167, 897)
-// 
+//
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -52,13 +52,18 @@
 
 
 struct pairwise_params{
-  pairwise_params():active_disparity_factor_(0.5),downscale_exponent_(2), multi_scale_mode_(0),//1
-    point_sample_dist_(0.3f), upsample_scale_factor_(1.0f), std_dev_(3.75*point_sample_dist_),num_nearest_nbrs_(5), shadow_thresh_(20),use_z_vs_d_prob_(false),  min_z_vs_d_scale_(1.0f), z_vs_d_std_dev_(1.0f), quad_interp_(false){ 
-    set_shadow_thresh(shadow_thresh_);//default
+  pairwise_params():
+    active_disparity_factor_(0.5), downscale_exponent_(2), multi_scale_mode_(0),  //1
+    point_sample_dist_(0.3f), upsample_scale_factor_(1.0f),
+    std_dev_(3.75*point_sample_dist_), num_nearest_nbrs_(5), shadow_thresh_(20),
+    use_z_vs_d_prob_(false), min_z_vs_d_scale_(1.0f), z_vs_d_std_dev_(1.0f),
+    quad_interp_(false)
+  {
+    set_shadow_thresh(shadow_thresh_);  //default
     set_quad_interp(quad_interp_);
   }
   void set_shadow_thresh(float thresh){ de_params_.shadow_thresh = thresh; shadow_thresh_ = thresh;}
-  void set_quad_interp(bool interp){
+  void set_quad_interp(bool interp) {
     de_params_.perform_quadratic_interp=interp; quad_interp_ = interp;
   }
   bsgm_disparity_estimator_params de_params_; // internal disparity estimator params
@@ -80,18 +85,18 @@ struct pairwise_params{
 class bsgm_prob_pairwise_dsm
 {
  public:
- bsgm_prob_pairwise_dsm():mid_z_(NAN), z_vs_disp_scale_(1.0){}
+  bsgm_prob_pairwise_dsm(): mid_z_(NAN), z_vs_disp_scale_(1.0) {}
 
   bsgm_prob_pairwise_dsm(vil_image_resource_sptr const& resc0, vpgl_affine_camera<double> const& acam0,
                          vil_image_resource_sptr const& resc1, vpgl_affine_camera<double> const& acam1):
-  mid_z_(NAN), z_vs_disp_scale_(1.0)
+    mid_z_(NAN), z_vs_disp_scale_(1.0)
   {
     rip_.set_images_and_cams(resc0, acam0, resc1, acam1);
   }
 
   bsgm_prob_pairwise_dsm(vil_image_view<unsigned char> const& view0, vpgl_affine_camera<double> const& acam0,
                          vil_image_view<unsigned char> const& view1, vpgl_affine_camera<double> const& acam1):
-  mid_z_(NAN),z_vs_disp_scale_(1.0)
+    mid_z_(NAN),z_vs_disp_scale_(1.0)
   {
     rip_.set_images_and_cams(vil_new_image_resource_of_view(view0), acam0, vil_new_image_resource_of_view(view1), acam1);
   }
@@ -130,13 +135,15 @@ class bsgm_prob_pairwise_dsm
   bool compute_pointset_prob();
   void prob_heightmap(vgl_box_3d<double> const& scene_box);
   bool compute_dsm_and_ptset_prob(vgl_box_3d<double> const& scene_box);
-  bool rect(vgl_box_3d<double> const& scene_box){
+  bool rect(vgl_box_3d<double> const& scene_box)
+  {
     bool good = rip_.process(scene_box);
     if (good) {
       this->compute_byte();
     }
     return good;
   }
+
   //: main process method
   bool process(vgl_box_3d<double> const& scene_box, bool with_consistency_check = true)
   {

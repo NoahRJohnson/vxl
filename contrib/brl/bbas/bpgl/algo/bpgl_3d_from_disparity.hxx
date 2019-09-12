@@ -28,11 +28,11 @@ vil_image_view<float> bpgl_3d_from_disparity(vpgl_affine_camera<double> const& c
   vil_image_view<float> img3d(ni, nj, 3);
   for (size_t j=0; j<nj; ++j) {
     for (size_t i=0; i<ni; ++i) {
-      //4-30-2019 jlm changed i - disparity to i + disparity to be consistent with 
+      //4-30-2019 jlm changed i - disparity to i + disparity to be consistent with
       //the disparity computed by bsgm_disparity_estimator
       double i2 = i + disparity(i,j);
       vnl_vector_fixed<double,3> x(NAN);
-      
+
       // could check against maximum valid value here as well, if we knew the size of the second image.
       if (i2 >= 0) {
         // valid disparity value
@@ -73,11 +73,11 @@ vil_image_view<float> bpgl_3d_from_disparity_with_scalar(vpgl_affine_camera<doub
   vil_image_view<float> img3d(ni, nj, 4);
   for (size_t j=0; j<nj; ++j) {
     for (size_t i=0; i<ni; ++i) {
-      //4-30-2019 jlm changed i - disparity to i + disparity to be consistent with 
+      //4-30-2019 jlm changed i - disparity to i + disparity to be consistent with
       //the disparity computed by bsgm_disparity_estimator
       double i2 = i + disparity(i,j);
       vnl_vector_fixed<double,3> x(NAN);
-      
+
       // could check against maximum valid value here as well, if we knew the size of the second image.
       if (i2 >= 0) {
         // valid disparity value

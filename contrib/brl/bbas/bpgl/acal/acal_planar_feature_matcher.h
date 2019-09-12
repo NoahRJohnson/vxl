@@ -28,7 +28,8 @@ struct planar_feature_params
 {
   planar_feature_params(): pt_spacing_(0.3), patch_radius_(6), coarse_search_radius_(20.0),
                            coarse_search_increment_(2.0), fine_search_radius_(2.5),
-                           fine_search_increment_(0.25), max_n_solved_images_(10){}
+                           fine_search_increment_(0.25), max_n_solved_images_(10) {}
+
   double pt_spacing_;
   double patch_radius_;
   double coarse_search_radius_;
@@ -41,10 +42,12 @@ struct planar_feature_params
 
 struct planar_match_score
 {
-  planar_match_score():mu_(0.67), sigma_(0.1), min_prob_(0.2){}
-  double p(double s){
+  planar_match_score():mu_(0.67), sigma_(0.1), min_prob_(0.2) {}
+
+  double p(double s) {
     return 0.5*(1.0+erf((s-mu_)/(sqrt(2)*sigma_)));
   }
+
   double mu_;
   double sigma_;
   double min_prob_;

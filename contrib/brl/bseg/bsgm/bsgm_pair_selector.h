@@ -1,6 +1,7 @@
 // This is//terra/bsgm_pair_selector.h
 #ifndef bsgm_pair_selector_h
 #define bsgm_pair_selector_h
+
 //:
 // \file
 // \brief A class to order image pairs according to likely dsm quality
@@ -21,8 +22,10 @@
 #include <bpgl/acal/acal_metadata.h>
 #include <vgl/vgl_vector_2d.h>
 #include <vnl/vnl_math.h>
-struct bsgm_pair_info{
-  bsgm_pair_info(){}
+
+struct bsgm_pair_info
+{
+  bsgm_pair_info() {}
   size_t i_;
   size_t j_;
   std::string iname_i_;
@@ -32,18 +35,20 @@ struct bsgm_pair_info{
   double gsd_ratio_;
   double cost_;
 };
-class bsgm_pair_less{
+
+class bsgm_pair_less
+{
 public:
- bsgm_pair_less(double best_angle, double low_angle_bnd, double high_angle_bnd, double max_sun_ang, double max_gsd_ratio,
-                std::map<size_t, std::map<size_t, double> > sun_angle_diffs,
-                std::map<size_t, std::map<size_t, double> >& ang_diffs,
-                std::map<size_t, std::map<size_t, double> >& gsd_ratios)
-   : best_angle_(best_angle), low_angle_bnd_(low_angle_bnd), high_angle_bnd_(high_angle_bnd),
-    max_sun_ang_(max_sun_ang), max_gsd_ratio_(max_gsd_ratio),
-    sun_angle_diffs_(sun_angle_diffs), ang_diffs_(ang_diffs), gsd_ratios_(gsd_ratios){}
+  bsgm_pair_less(double best_angle, double low_angle_bnd, double high_angle_bnd, double max_sun_ang, double max_gsd_ratio,
+                 std::map<size_t, std::map<size_t, double> > sun_angle_diffs,
+                 std::map<size_t, std::map<size_t, double> >& ang_diffs,
+                 std::map<size_t, std::map<size_t, double> >& gsd_ratios)
+    : best_angle_(best_angle), low_angle_bnd_(low_angle_bnd), high_angle_bnd_(high_angle_bnd),
+      max_sun_ang_(max_sun_ang), max_gsd_ratio_(max_gsd_ratio),
+      sun_angle_diffs_(sun_angle_diffs), ang_diffs_(ang_diffs), gsd_ratios_(gsd_ratios) {}
 
   //: a function to represent an upper bound cost
-  static double sc(double x, double x_half){
+  static double sc(double x, double x_half) {
     double den = pow(fabs(x_half), 4);
     if(den == 0.0)
       return std::numeric_limits<double>::max();
@@ -51,21 +56,24 @@ public:
     temp /= den;
     return temp + 0.1;// keep a small floor to the cost to avoid multiplication by zero
   }
-   double rng(double x, double flr = 0.1){
+
+  double rng(double x, double flr = 0.1) {
     double ret = flr;
     if(x<=(best_angle_-low_angle_bnd_)) ret = flr + pow((best_angle_-low_angle_bnd_)-x, 4);
     if(x>= (best_angle_ + high_angle_bnd_)) ret = flr + pow(x- (best_angle_ + high_angle_bnd_), 4);
     return ret;
   }
-  double cost(double view_ang_diff, double sun_ang_diff, double gsd_ratio){
+
+  double cost(double view_ang_diff, double sun_ang_diff, double gsd_ratio) {
     double c = rng(view_ang_diff);
     c *= sc(sun_ang_diff, max_sun_ang_); // cost for exceeding the max sun angle difference
     c *= sc(log(gsd_ratio), log(max_gsd_ratio_));  // cost for exceeding the max gsd ratio
     return c;                            // product of costs
   }
+
   // the functor operator to provide a less-than comparison
-  bool operator ()(std::pair<size_t, size_t> const& a, std::pair<size_t, size_t> const& b){
-	  
+  bool operator ()(std::pair<size_t, size_t> const& a, std::pair<size_t, size_t> const& b) {
+
     double view_ang_dif_a = ang_diffs_[a.first][a.second];
     double sun_ang_dif_a = sun_angle_diffs_[a.first][a.second];
     double gsd_rat_a = gsd_ratios_[a.first][a.second];
@@ -77,6 +85,7 @@ public:
     double cost_b = cost(view_ang_dif_b, sun_ang_dif_b, gsd_rat_b);
     return cost_a < cost_b;
   }
+
   double best_angle_;     // the ideal view angle separation for stereo reconstruction
   double low_angle_bnd_;
   double high_angle_bnd_;
@@ -86,8 +95,13 @@ public:
   std::map<size_t, std::map<size_t, double> >& ang_diffs_;
   std::map<size_t, std::map<size_t, double> >& gsd_ratios_;
 };
-struct bsgm_pair_selector_params{
-bsgm_pair_selector_params(): best_angle_(12.0), low_angle_bnd_(2.0), high_angle_bnd_(12.0),max_sun_ang_(3.0), max_gsd_ratio_(1.1), max_proj_err_(0.3){}
+
+struct bsgm_pair_selector_params
+{
+  bsgm_pair_selector_params():
+    best_angle_(12.0), low_angle_bnd_(2.0), high_angle_bnd_(12.0),
+    max_sun_ang_(3.0), max_gsd_ratio_(1.1), max_proj_err_(0.3) {}
+
   double best_angle_;
   double low_angle_bnd_;
   double high_angle_bnd_;
@@ -95,34 +109,40 @@ bsgm_pair_selector_params(): best_angle_(12.0), low_angle_bnd_(2.0), high_angle_
   double max_gsd_ratio_;
   double max_proj_err_;
 };
-class bsgm_pair_selector{
+
+class bsgm_pair_selector
+{
  public:
- bsgm_pair_selector():meta_dir_(""), tile_dir_(""), subdir_(""), crop_str_(""),affine_cam_postfix_("_affine_corrected.txt"), image_meta_fname_("images.json"),
-    geo_corr_meta_fname_("geo_corr_metadata.json"), non_seed_geo_corr_meta_fname_("geo_corr_non_seed_metadata.json"),
+  bsgm_pair_selector():
+    meta_dir_(""), tile_dir_(""), subdir_(""), crop_str_(""),
+    affine_cam_postfix_("_affine_corrected.txt"),
+    image_meta_fname_("images.json"),
+    geo_corr_meta_fname_("geo_corr_metadata.json"),
+    non_seed_geo_corr_meta_fname_("geo_corr_non_seed_metadata.json"),
     pair_output_fname_("sorted_image_pairs.json"){}
 
   //: set and return parameter block
-  void set_params(bsgm_pair_selector_params const& params){params_ = params;}
-  bsgm_pair_selector_params params(){return params_;}
+  void set_params(bsgm_pair_selector_params const& params) {params_ = params;}
+  bsgm_pair_selector_params params() {return params_;}
 
   //: add the crop file postfix if needed for loading affine cameras
-  void add_crop_postfix(bool add_crop){add_crop?crop_str_="_crop":crop_str_="";}
-  
+  void add_crop_postfix(bool add_crop) {add_crop?crop_str_="_crop":crop_str_="";}
+
   //: load uncorrected affine cams
   bool load_uncorr_affine_cams(std::string affine_cam_path);
 
   //: the path to the directory containing images and cams with the best correction constraints (seed tile)
-  void set_tile_dir(std::string const& dir){tile_dir_ = dir;}
+  void set_tile_dir(std::string const& dir) {tile_dir_ = dir;}
 
   //: subdirectory in tile dir to put results
   void set_subdir(std::string const& dir) { subdir_ = dir; }
 
   //: the path to the directory containing metadata files
-  void set_metadata_dir(std::string const& dir){meta_dir_ = dir;}
+  void set_metadata_dir(std::string const& dir) {meta_dir_ = dir;}
 
   //: set the conventions for file names
   void set_path_conventions(std::string const& affine_cam_postfix, std::string const& image_meta_fname,
-                            std::string const& geo_corr_meta_fname, std::string const& pair_output_fname){
+                            std::string const& geo_corr_meta_fname, std::string const& pair_output_fname) {
     affine_cam_postfix_ = affine_cam_postfix; image_meta_fname_=image_meta_fname;
     geo_corr_meta_fname_ = geo_corr_meta_fname; pair_output_fname_ = pair_output_fname;}
 
@@ -140,17 +160,18 @@ class bsgm_pair_selector{
   bool prioritize_pairs();
 
   //: the main pair selection process method. default includes both seed and non-seed corrected cameras in the selection
-  bool process(bool seed_cameras_only = false){
+  bool process(bool seed_cameras_only = false) {
     bool good = read_image_metadata();
     good = good && read_geo_corr_metadata(seed_cameras_only);
     good = good && set_inames();
     good = good && prioritize_pairs();
     return good;
   }
+
   //: accessors to sorted pairs
   std::vector<std::pair<size_t, size_t> > pair_indices() const {return ordered_pairs_;}
   std::vector<std::pair<std::string, std::string> > pair_inames();
-  std::vector<bsgm_pair_info> pair_information(){return ordered_pair_info_;}
+  std::vector<bsgm_pair_info> pair_information() {return ordered_pair_info_;}
   //: save a json file of ordered pair information to pairwise process directory
   bool save_ordered_pairs();
 

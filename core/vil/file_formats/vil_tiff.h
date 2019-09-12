@@ -245,7 +245,7 @@ class vil_tiff_image : public vil_blocked_image_resource
   }
 
   //: return the non-standard no_data_value (encoded as a string, defined by gdal)
-  std::string no_data_value(){return h_->no_data_value();}
+  std::string no_data_value() {return h_->no_data_value();}
 
  private:
   //: the TIFF handle to the open resource file

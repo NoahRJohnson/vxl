@@ -316,8 +316,8 @@ void vpgl_geo_camera::project(const double x, const double y, const double z,
       this->global_to_img(lon, lat, gz, u, v);
     }
   }
-  else { // if there is no lvcs, then we assume global coords are given in wgs84, i.e. x is lon and y is lat
-      this->global_to_img(x, y, z, u, v);
+  else {  // if there is no lvcs, then we assume global coords are given in wgs84, i.e. x is lon and y is lat
+    this->global_to_img(x, y, z, u, v);
   }
 }
 
@@ -391,7 +391,7 @@ void vpgl_geo_camera::img_to_global(const double i, const double j,
   v[2] = 0;
   v[3] = 1;
   if (is_utm_) {
-    vpgl_utm utm;  
+    vpgl_utm utm;
     double elev = 0.0;
     bool south_flag = northing_ > 0;
     utm.transform(utm_zone_, v[0], v[1], v[2], lat, lon,elev, south_flag);
@@ -548,12 +548,12 @@ bool vpgl_geo_camera::operator==(vpgl_geo_camera const& rhs) const
 std::ostream&  operator<<(std::ostream& s,
                          vpgl_geo_camera const& p)
 {
-  if(!p.is_utm_) s << "geocam is using wgs_84 deg/meters" << '\n';
-  if(p.lvcs_) s << p.trans_matrix_ << '\n'<< *(p.lvcs_) << '\n';
+  if (!p.is_utm_) s << "geocam is using wgs_84 deg/meters" << '\n';
+  if (p.lvcs_) s << p.trans_matrix_ << '\n'<< *(p.lvcs_) << '\n';
   else s << p.trans_matrix_ << '\n';
   if (p.is_utm_) {
     s << "geocam is using UTM with zone: " << p.utm_zone_ << '\n';
-    if(p.northing_) s << "southern zone" << std::endl;
+    if (p.northing_) s << "southern zone" << std::endl;
     else s << "northern zone" << std::endl;
   }
 

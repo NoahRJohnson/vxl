@@ -246,7 +246,7 @@ class vil_tiff_header
   vxl_uint_16  n_images();
 
   //:: a non_standard tag due to gdal. Null string means not defined
-  std::string no_data_value(){return no_data_value_;}
+  std::string no_data_value() {return no_data_value_;}
  private:
   TIFF* tif_;
   //: read/write mode true for read.

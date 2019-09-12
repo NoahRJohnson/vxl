@@ -10,6 +10,7 @@
 #include <vnl/vnl_math.h>
 #include <vgl/vgl_box_3d.h>
 #include <vgl/vgl_box_2d.h>
+
 //: compute the heightmap given that triangulated 3-d data is available
 template<class CAM_T>
 vil_image_view<float>
@@ -30,7 +31,7 @@ bpgl_heightmap_from_tri_image(CAM_T const& cam1, CAM_T const& cam2, vil_image_vi
           vnl_math::isfinite(tri_image_3d(i,j,1)) &&
           vnl_math::isfinite(tri_image_3d(i,j,2)) ) {
         const float z = tri_image_3d(i,j,2);
-        if ((z < min_z) || (z > max_z)) { 
+        if ((z < min_z) || (z > max_z)) {
           continue;
         }
         // x,y goes in ground samples
@@ -66,6 +67,7 @@ bpgl_heightmap_from_tri_image(CAM_T const& cam1, CAM_T const& cam2, vil_image_vi
 
   return hmap;
 }
+
 //: compute the heightmap using dispairity to compute the triangulated 3-d data
 template<class CAM_T>
 vil_image_view<float>
@@ -77,12 +79,14 @@ bpgl_heightmap_from_disparity(CAM_T const& cam1, CAM_T const& cam2,
   vil_image_view<float> triangulated = bpgl_3d_from_disparity(cam1, cam2, disparity);
   return bpgl_heightmap_from_tri_image(cam1, cam2, triangulated, heightmap_bounds, ground_sample_distance);
 }
+
 //: compute the heightmap and scalar map given that triangulated 3-d data is available
 template<class CAM_T>
 void bpgl_heightmap_with_scalar_from_tri_image(CAM_T const& cam1, CAM_T const& cam2,
                                                vil_image_view<float> const& tri_image_3d, vil_image_view<float> scalar,
                                                vgl_box_3d<double> heightmap_bounds, double ground_sample_distance,
-                                               vil_image_view<float>& heightmap, vil_image_view<float>& scalar_map){
+                                               vil_image_view<float>& heightmap, vil_image_view<float>& scalar_map)
+{
   // put triangulated points into a vector
   std::vector<vgl_point_2d<double>> triangulated_xy;
   std::vector<float> height_vals, scalar_vals;
@@ -98,7 +102,7 @@ void bpgl_heightmap_with_scalar_from_tri_image(CAM_T const& cam1, CAM_T const& c
           ) {
         const float z = tri_image_3d(i,j,2);
         const float s = tri_image_3d(i,j,3);
-        if ((z < min_z) || (z > max_z)) { 
+        if ((z < min_z) || (z > max_z)) {
           continue;
         }
         // x,y goes in ground samples
@@ -128,7 +132,7 @@ void bpgl_heightmap_with_scalar_from_tri_image(CAM_T const& cam1, CAM_T const& c
   for (int j=0; j<nj; ++j) {
     for (int i=0; i<ni; ++i) {
       if ((heightmap(i,j) < min_z) || (heightmap(i,j) > max_z)) {
-		  heightmap(i,j) = NAN;
+        heightmap(i,j) = NAN;
       }
     }
   }
@@ -136,23 +140,27 @@ void bpgl_heightmap_with_scalar_from_tri_image(CAM_T const& cam1, CAM_T const& c
                                            upper_left, ni, nj, ground_sample_distance,
                                            interp_fun, num_neighbors);
 }
+
 //: compute the heightmap and scalar map using disparity to compute triangulated 3-d data
 template<class CAM_T>
 void bpgl_heightmap_with_scalar_from_disparity(CAM_T const& cam1, CAM_T const& cam2,
                                                vil_image_view<float> const& disparity, vil_image_view<float> scalar,
                                                vgl_box_3d<double> heightmap_bounds, double ground_sample_distance,
-                                               vil_image_view<float>& heightmap, vil_image_view<float>& scalar_map){
+                                               vil_image_view<float>& heightmap, vil_image_view<float>& scalar_map)
+{
   // convert disparity to set of 3D points
   vil_image_view<float> triangulated = bpgl_3d_from_disparity_with_scalar(cam1, cam2, disparity, scalar);
   bpgl_heightmap_with_scalar_from_tri_image(cam1, cam2, triangulated, scalar, heightmap_bounds, ground_sample_distance,
                                             heightmap, scalar_map);
 }
+
 //:compute the 3-d pointset given that triangulated 3-d data is available
 template<class pointT, class CAM_T>
 void bpgl_pointset_from_tri_image(CAM_T const& cam1, CAM_T const& cam2,
                                   vil_image_view<float> const& tri_image_3d,
                                   vgl_box_3d<pointT> heightmap_bounds,
-                                  std::vector<vgl_point_3d<pointT> >& ptset){
+                                  std::vector<vgl_point_3d<pointT> >& ptset)
+{
   ptset.clear();
   vgl_box_2d<pointT> bounds_2d;
   vgl_point_2d<pointT> pmin(heightmap_bounds.min_x(), heightmap_bounds.min_y());
@@ -185,12 +193,14 @@ void bpgl_pointset_from_tri_image(CAM_T const& cam1, CAM_T const& cam2,
     }
   }
 }
+
 //: compute the 3-d pointset using disparity to compute triangulated 3-d data
 template<class pointT, class CAM_T>
 void bpgl_pointset_from_disparity(CAM_T const& cam1, CAM_T const& cam2,
                                   vil_image_view<float> const& disparity,
                                   vgl_box_3d<pointT> heightmap_bounds,
-                                  std::vector<vgl_point_3d<pointT> >& ptset){
+                                  std::vector<vgl_point_3d<pointT> >& ptset)
+{
   ptset.clear();
   vgl_box_2d<pointT> bounds_2d;
   vgl_point_2d<pointT> pmin(heightmap_bounds.min_x(), heightmap_bounds.min_y());

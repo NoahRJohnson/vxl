@@ -20,7 +20,7 @@ static void test_register()
   size_t n = 1000; //min number of points
   double min_c = 0, max_c = 10.0;
   vgl_pointset_3d<float> gt_ptset, test_ptset;
-  for(size_t i = 0; i<n; ++i){
+  for (size_t i = 0; i<n; ++i) {
     vgl_point_3d<float> p(static_cast<float>(rand.drand32(min_c, max_c)),
                           static_cast<float>(rand.drand32(min_c, max_c)),
                           static_cast<float>(rand.drand32(min_c, max_c)));
@@ -28,7 +28,7 @@ static void test_register()
   }
   // transform ptset by t
   vgl_vector_3d<float> t(1.0, -1.0, 1.5);
-  for(size_t i = 0; i<n; ++i){
+  for (size_t i = 0; i<n; ++i) {
     const vgl_point_3d<float>& p = gt_ptset.p(i);
     vgl_point_3d<float> tp = p + t;
     test_ptset.add_point(tp);

@@ -23,8 +23,11 @@
 #include <vgl/vgl_vector_2d.h>
 #include "acal_f_utils.h"
 #include "acal_match_tree.h"
-struct match_params{
-match_params():min_n_tracks_(3), min_n_cams_(3), max_proj_error_(1.0), max_uncal_proj_error_(20.0) {}
+
+struct match_params
+{
+  match_params() : min_n_tracks_(3), min_n_cams_(3), max_proj_error_(1.0), max_uncal_proj_error_(20.0) {}
+
   size_t min_n_tracks_;
   size_t min_n_cams_;
   double max_proj_error_;
@@ -32,26 +35,32 @@ match_params():min_n_tracks_(3), min_n_cams_(3), max_proj_error_(1.0), max_uncal
 };
 
 class match_vertex;
-class match_edge{
+class match_edge
+{
  public:
-  match_edge() : id_(-1) {}
+  match_edge(): id_(-1) {}
   match_edge(std::shared_ptr<match_vertex> v0,
-             std::shared_ptr<match_vertex> v1, std::vector<acal_match_pair> const& matches, size_t id = 0): v0_(v0), v1_(v1),
-    matches_(matches), id_(id){}
+             std::shared_ptr<match_vertex> v1,
+             std::vector<acal_match_pair> const& matches,
+             size_t id = 0):
+    v0_(v0), v1_(v1), matches_(matches), id_(id){}
+
   size_t id_;
   std::vector<acal_match_pair>  matches_;
   std::shared_ptr<match_vertex> v0_;
   std::shared_ptr<match_vertex> v1_;
-};  
+};
+
+
 class match_vertex {
  public:
- match_vertex(): cam_id_(-1), mark_(false){}
- match_vertex(size_t cam_id): cam_id_(cam_id), mark_(false){}
+  match_vertex(): cam_id_(-1), mark_(false) {}
+  match_vertex(size_t cam_id): cam_id_(cam_id), mark_(false) {}
 
-  void add_edge(match_edge* edge){
+  void add_edge(match_edge* edge) {
     std::vector<match_edge* >::iterator eit;
     eit = std::find( edges_.begin(), edges_.end(), edge);
-    if(eit == edges_.end())
+    if (eit == edges_.end())
       edges_.push_back(edge);
   }
 
@@ -61,14 +70,16 @@ class match_vertex {
       edges_[i] = 0;
     edges_.clear();
   }
+
   size_t cam_id_;
   bool mark_;
   std::vector<match_edge*> edges_;
 };
+
 class acal_match_graph
 {
  public:
- acal_match_graph(){}
+  acal_match_graph() {}
   //                         cam id i         cam id j            matches i -> j
   acal_match_graph(std::map<size_t, std::map<size_t, std::vector<acal_match_pair> > >const& incidence_matrix);
   void set_params(match_params const& params){params_ = params;}
@@ -106,7 +117,7 @@ class acal_match_graph
   }
   size_t n_connected_comp() const {return conn_comps_.size();}
   double focus_tracks_metric(size_t  const& conn_component_index = 0) const{return focus_track_metric_[conn_component_index];}
-  
+
   size_t match_tree_metric(size_t conn_comp_index) const {return match_tree_metric_[conn_comp_index];}
 
   std::map<size_t, std::string> image_names();
@@ -117,7 +128,7 @@ class acal_match_graph
   bool save_graph_dot_format(std::string const& path);
   bool save_focus_graphs_dot_format(size_t ccomp_index, std::string const& path);
   bool save_match_trees_dot_format(size_t ccomp_index, std::string const& path, size_t num_trees = -1);
-  
+
  private:
   match_params params_;
   std::map<size_t, std::string> image_paths_;
@@ -127,10 +138,10 @@ class acal_match_graph
   std::vector<std::shared_ptr<match_edge> > match_edges_;
   //   c_comp      verts
   std::vector<std::vector<std::shared_ptr<match_vertex> > > conn_comps_;
-  //     c_comp id     focus cam id      track          cam_id   correspondence 
+  //     c_comp id     focus cam id      track          cam_id   correspondence
   std::map<size_t, std::map<size_t, std::vector< std::map<size_t, vgl_point_2d<double> > > > > focus_tracks_;
   std::vector<double> focus_track_metric_;
-    //     c_comp id     focus cam id      tree
+  //       c_comp id     focus cam id      tree
   std::map<size_t, std::map<size_t, std::shared_ptr<acal_match_tree> > > match_trees_;
   //   c_comp
   std::vector<size_t> match_tree_metric_;

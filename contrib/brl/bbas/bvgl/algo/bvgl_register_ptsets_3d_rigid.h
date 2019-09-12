@@ -31,25 +31,31 @@ class bvgl_register_ptsets_3d_rigid
 
 public:
   //: Constructor - default
- bvgl_register_ptsets_3d_rigid():t_range_(vgl_vector_3d<T>(2.5, 2.5, 2.5)),t_inc_(vgl_vector_3d<T>(0.5, 0.5, 0.5)),
-    outlier_thresh_(5.0),transform_fraction_(0.05),min_n_pts_(1000),min_error_(std::numeric_limits<T>::max()){}
+  bvgl_register_ptsets_3d_rigid():
+    t_range_(vgl_vector_3d<T>(2.5, 2.5, 2.5)),
+    t_inc_(vgl_vector_3d<T>(0.5, 0.5, 0.5)),
+    outlier_thresh_(5.0), transform_fraction_(0.05),
+    min_n_pts_(1000), min_error_(std::numeric_limits<T>::max()) {}
 
-bvgl_register_ptsets_3d_rigid(vgl_pointset_3d<T> const& fixed, vgl_pointset_3d<T> const& movable):
-t_range_(vgl_vector_3d<T>(2.5, 2.5, 2.5)),t_inc_(vgl_vector_3d<T>(0.5, 0.5, 0.5)),
-  outlier_thresh_(5.0),transform_fraction_(0.05),min_n_pts_(1000),min_error_(std::numeric_limits<T>::max()) {
-      fixed_ = fixed; movable_ = movable; knn_fixed_ = bvgl_k_nearest_neighbors_3d<T>(fixed);
-      unsigned n = movable_.npts();
-      size_t nf = static_cast<size_t>(transform_fraction_ * n);
-      if (nf < min_n_pts_)
-          nf = min_n_pts_;
-      if (nf > n)
-          nf = n;
-      vnl_random rand;
-      for (size_t i = 0; i < nf; ++i) {
-          size_t k = static_cast<size_t>(rand(n));
-          const vgl_point_3d<T>& p = movable_.p(k);
-          frac_trans_.add_point(p);
-      }
+  bvgl_register_ptsets_3d_rigid(vgl_pointset_3d<T> const& fixed, vgl_pointset_3d<T> const& movable):
+    t_range_(vgl_vector_3d<T>(2.5, 2.5, 2.5)),
+    t_inc_(vgl_vector_3d<T>(0.5, 0.5, 0.5)),
+    outlier_thresh_(5.0), transform_fraction_(0.05),
+    min_n_pts_(1000), min_error_(std::numeric_limits<T>::max())
+  {
+    fixed_ = fixed; movable_ = movable; knn_fixed_ = bvgl_k_nearest_neighbors_3d<T>(fixed);
+    unsigned n = movable_.npts();
+    size_t nf = static_cast<size_t>(transform_fraction_ * n);
+    if (nf < min_n_pts_)
+      nf = min_n_pts_;
+    if (nf > n)
+      nf = n;
+    vnl_random rand;
+    for (size_t i = 0; i < nf; ++i) {
+      size_t k = static_cast<size_t>(rand(n));
+      const vgl_point_3d<T>& p = movable_.p(k);
+      frac_trans_.add_point(p);
+    }
   }
   bool read_fixed_ptset(std::string const& fixed_path);
   bool read_movable_ptset(std::string const& movable_path);
@@ -65,6 +71,7 @@ t_range_(vgl_vector_3d<T>(2.5, 2.5, 2.5)),t_inc_(vgl_vector_3d<T>(0.5, 0.5, 0.5)
   vgl_vector_3d<T> t()const {return t_;}
   T min_error() const {return min_error_;}
   std::vector<std::pair<T, vgl_point_3d<T> > > sorted_distance() const {return sorted_distance_;}
+
  private:
   static bool dless(std::pair<T, vgl_point_3d<T> > const& a, std::pair<T, vgl_point_3d<T> > const& b);
   T outlier_thresh_;
