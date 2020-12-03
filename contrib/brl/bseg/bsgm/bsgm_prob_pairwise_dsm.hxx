@@ -181,7 +181,7 @@ void bsgm_prob_pairwise_dsm<CAM_T, PIX_T>::compute_height_rev(bool compute_hmap)
 // Probabilistic heightmaps
 // ----------
 
-// compute probablistic height (ptset, heightmap, probability)
+// compute probabilistic height (ptset, heightmap, probability)
 template <class CAM_T, class PIX_T>
 bool bsgm_prob_pairwise_dsm<CAM_T, PIX_T>::compute_prob()
 {

@@ -98,7 +98,7 @@ struct pairwise_params
   float ground_sample_dist_ = 0.3f;
 
   // reverse the sign of disparity (disparity_sense_ = -1) for situations where the scene is behind the camera
-  // happens occasionaly for perspective cameras computed by SfM
+  // happens occasionally for perspective cameras computed by SfM
   int disparity_sense_ = 1;
 
   // upsample the rectified images by scale factor
@@ -110,7 +110,7 @@ struct pairwise_params
   // the standard deviation of consistent disparity point distances
   float std_dev_ = 3.75*ground_sample_dist_;
 
-  // multiply height probabilty with additional z vs d scale probability factor
+  // multiply height probability with additional z vs d scale probability factor
   bool use_z_vs_d_prob_ = false;
 
   // the lowest z vs d scale factor that is typically obtained in meters/pixel
@@ -119,7 +119,7 @@ struct pairwise_params
   // the standard deviation for the z vs d Gaussian distribution
   float z_vs_d_std_dev_ = 1.0f;
 
-  // pointset->heightmap gridding paramters:
+  // pointset->heightmap gridding parameters:
   // expected number of neighbors (between min/max neighbors) within some distance
   // (_neighbor_dist_factor * _ground_sample_distance) of each heightmap pixel
   unsigned min_neighbors_ = 3;
@@ -187,7 +187,7 @@ class bsgm_prob_pairwise_dsm
   //: set a table of scale factors with respect to the effective bits per pixel
   //  of the input imagery. For example the actual bits per pixel might be 11 or a range of (0, 2047)
   //  however the typical range of intensities might be only (0, 725) so the appearance cost scale
-  //  will be 725/255 ~ 2.8. The nominal parmeters in bsgm are tuned for byte images thus the 255 denominator.
+  //  will be 725/255 ~ 2.8. The nominal parameters in bsgm are tuned for byte images thus the 255 denominator.
   //  census threshold and gradient magnitude are adjusted for higher dynamic ranges according to this scale factor
   void set_dynamic_range_table(std::map<int, float> const& bits_per_pix_factors){
     bits_per_pix_factors_ = bits_per_pix_factors;
@@ -245,7 +245,7 @@ class bsgm_prob_pairwise_dsm
   const vgl_pointset_3d<float> ptset_fwd() const {return ptset_fwd_;}
   const vgl_pointset_3d<float> ptset_rev() const {return ptset_rev_;}
 
-  //: probablistic results
+  //: probabilistic results
   const vgl_pointset_3d<float> prob_ptset() const {return prob_ptset_;}
   bsta_histogram<float> prob_pdf() const {return prob_distr_;}
 
@@ -286,7 +286,7 @@ class bsgm_prob_pairwise_dsm
     // rectification
     this->rectify();
 
-    // compute foward disparity & height
+    // compute forward disparity & height
     this->compute_disparity_fwd();
     this->compute_height_fwd(compute_fwd_rev_ptsets_hmaps);
 
@@ -307,7 +307,7 @@ class bsgm_prob_pairwise_dsm
 
   // MISC-----
 
-  //: apply a color map to the probabilty values and
+  //: apply a color map to the probability values and
   //  output a color point cloud as ascii
   bool save_prob_ptset_color(std::string const& path) const;
 
@@ -382,7 +382,7 @@ class bsgm_prob_pairwise_dsm
   vil_image_view<float> heightmap_fwd_;
   vil_image_view<float> heightmap_rev_;
 
-  // probablistic data
+  // probabilistic data
   vgl_pointset_3d<float> prob_ptset_;
   bsta_histogram<float> prob_distr_;
 
