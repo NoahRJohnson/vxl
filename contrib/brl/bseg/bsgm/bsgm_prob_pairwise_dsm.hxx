@@ -3,6 +3,8 @@
 #include "bsgm_prob_pairwise_dsm.h"
 #include "bsgm_error_checking.h"
 #include "bsgm_multiscale_disparity_estimator.h"
+#include <algorithm>
+#include <cmath>
 #include <type_traits>
 #include <stdexcept>
 #include "vil/vil_convert.h"
@@ -20,6 +22,60 @@
 // ----------
 // Rectification
 // ----------
+template <class CAM_T, class PIX_T>
+vgl_box_2d<size_t> bsgm_prob_pairwise_dsm<CAM_T, PIX_T>::rectify_window(
+    vgl_box_2d<size_t>& window,
+    vnl_matrix_fixed<double, 3, 3> H,
+    size_t ni, size_t nj) {
+
+  // corners of window (homogeneous coordinates)
+  vnl_vector_fixed<double, 3> ll_corner(window.min_x(), window.min_y(), 1);
+  vnl_vector_fixed<double, 3> ur_corner(window.max_x(), window.max_y(), 1);
+
+  // apply homography to corners
+  vnl_vector_fixed<double, 3> ll_corner_rect = H * ll_corner;
+  vnl_vector_fixed<double, 3> ur_corner_rect = H * ur_corner;
+
+  // homogeneous -> cartesian coordinates
+  double ll_corner_rect_x = ll_corner_rect[0] / ll_corner_rect[2];
+  double ll_corner_rect_y = ll_corner_rect[1] / ll_corner_rect[2];
+  double ur_corner_rect_x = ur_corner_rect[0] / ur_corner_rect[2];
+  double ur_corner_rect_y = ur_corner_rect[1] / ur_corner_rect[2];
+
+  // axis-aligned bounding box around rectified corners
+  double min_x_rect_d = std::min(ll_corner_rect_x, ur_corner_rect_x);
+  double min_y_rect_d = std::min(ll_corner_rect_y, ur_corner_rect_y);
+  double max_x_rect_d = std::max(ll_corner_rect_x, ur_corner_rect_x);
+  double max_y_rect_d = std::max(ll_corner_rect_y, ur_corner_rect_y);
+
+  // snap to pixel
+  size_t min_x_rect = static_cast<size_t>(std::floor(min_x_rect_d));
+  size_t min_y_rect = static_cast<size_t>(std::floor(min_y_rect_d));
+  size_t max_x_rect = static_cast<size_t>(std::ceil(max_x_rect_d));
+  size_t max_y_rect = static_cast<size_t>(std::ceil(max_y_rect_d));
+
+  // expand by margin
+  min_x_rect -= params_.target_margin_;
+  min_y_rect -= params_.target_margin_;
+  max_x_rect += params_.target_margin_;
+  max_y_rect += params_.target_margin_;
+
+  // clip to image bounds
+  min_x_rect = std::max<size_t>(min_x_rect, 0);
+  min_y_rect = std::max<size_t>(min_y_rect, 0);
+  max_x_rect = std::min<size_t>(max_x_rect, ni);
+  max_y_rect = std::min<size_t>(max_y_rect, nj);
+
+  // degenerate case
+  if (min_x_rect >= max_x_rect || min_y_rect >= max_y_rect) {
+    return vgl_box_2d<size_t>();
+  }
+
+  return vgl_box_2d<size_t>(min_x_rect, max_x_rect,
+                            min_y_rect, max_y_rect);
+}
+
+
 template <class CAM_T, class PIX_T>
 void bsgm_prob_pairwise_dsm<CAM_T, PIX_T>::rectify()
 {
@@ -72,6 +128,15 @@ void bsgm_prob_pairwise_dsm<CAM_T, PIX_T>::rectify()
       rect_bview1_(i,j) = PIX_T(scale_1*f1);
     }
   }
+
+  // if target or reference window is provided, apply same homography to it
+  if (!target_window_.is_empty()) {
+    rect_target_window_ = rectify_window(target_window_, rip_.H0());
+
+  }
+  if (!reference_window_.is_empty()) {
+    rect_reference_window_ = rectify_window(reference_window_, rip_.H1());
+  }
 }
 
 // ----------
@@ -85,14 +150,15 @@ void bsgm_prob_pairwise_dsm<CAM_T, PIX_T>::compute_disparity(
     const vil_image_view<PIX_T>& img_reference,
     bool forward,
     vil_image_view<bool>& invalid,
-    vil_image_view<float>& disparity)
+    vil_image_view<float>& disparity,
+    vgl_box_2d<size_t>& img_window)
 {
   vxl_byte border_val = 0;
   float invalid_disp = NAN; //required for triangulation implementation
   bool good = true;
   float dynamic_range_factor = bits_per_pix_factors_[params_.effective_bits_per_pixel_];
-  bsgm_compute_invalid_map<PIX_T>(img, img_reference, invalid,
-                           min_disparity_, num_disparities(), border_val);
+  bsgm_compute_invalid_map<PIX_T>(img, img_reference, invalid, min_disparity_,
+                                  num_disparities(), border_val, img_window);
   if (params_.coarse_dsm_disparity_estimate_) {
     bsgm_multiscale_disparity_estimator mde(params_.de_params_, ni_, nj_,
                                             num_disparities(), num_active_disparities());
@@ -103,16 +169,30 @@ void bsgm_prob_pairwise_dsm<CAM_T, PIX_T>::compute_disparity(
     if (!good)
       throw std::runtime_error("Multiscale disparity estimator failed");
   } else {  // use input min_disparity
-    size_t ni = img.ni(), nj = img.nj();
 
-    vil_image_view<int> min_disparity(ni, nj);
+    // SGM cost volume dimensions (full image size, or window)
+    size_t cost_volume_width, cost_volume_height;
+    if (img_window.is_empty()) {
+      cost_volume_width = img.ni();
+      cost_volume_height = img.nj();
+    }
+    else {
+      cost_volume_width = img_window.width();
+      cost_volume_height = img_window.height();
+    }
+
+    // default min disparity per pixel
+    vil_image_view<int> min_disparity(cost_volume_height, cost_volume_width);
     if (forward)  // img = img0, ref = img1
       min_disparity.fill(min_disparity_);
     else  // reverse img = img1, ref = img0
       min_disparity.fill(-(num_disparities() + min_disparity_));
 
-    bsgm_disparity_estimator bsgm(params_.de_params_, ni, nj, num_disparities());
-    good = bsgm.compute(img, img_reference, invalid, min_disparity, invalid_disp, disparity, dynamic_range_factor);
+    bsgm_disparity_estimator bsgm(params_.de_params_, cost_volume_width,
+                                  cost_volume_height, num_disparities());
+    good = bsgm.compute(img, img_reference, invalid, min_disparity,
+                        invalid_disp, disparity, dynamic_range_factor,
+                        false, img_window);
     if (!good)
       throw std::runtime_error("disparity estimator failed");
   }
@@ -123,7 +203,9 @@ template <class CAM_T, class PIX_T>
 void bsgm_prob_pairwise_dsm<CAM_T, PIX_T>::compute_disparity_fwd()
 {
   bool forward = true;
-  compute_disparity(rect_bview0_, rect_bview1_, forward, invalid_map_fwd_, disparity_fwd_);
+  compute_disparity(rect_bview0_, rect_bview1_, forward,
+                    invalid_map_fwd_, disparity_fwd_,
+                    rect_target_window_);
 }
 
 // compute reverse disparity
@@ -131,7 +213,9 @@ template <class CAM_T, class PIX_T>
 void bsgm_prob_pairwise_dsm<CAM_T, PIX_T>::compute_disparity_rev()
 {
   bool forward = false;
-  compute_disparity(rect_bview1_, rect_bview0_, forward, invalid_map_rev_, disparity_rev_);
+  compute_disparity(rect_bview1_, rect_bview0_, forward,
+                    invalid_map_rev_, disparity_rev_,
+                    rect_reference_window_);
 }
 
 
@@ -158,22 +242,59 @@ void bsgm_prob_pairwise_dsm<CAM_T, PIX_T>::compute_height(const CAM_T& cam, cons
 template <class CAM_T, class PIX_T>
 void bsgm_prob_pairwise_dsm<CAM_T, PIX_T>::compute_height_fwd(bool compute_hmap)
 {
-  if(compute_hmap)
-    this->compute_height(rip_.rect_cam0(), rip_.rect_cam1(), disparity_fwd_,
-                         tri_3d_fwd_, ptset_fwd_, heightmap_fwd_);
+  // make copies so we can modify if we need to
+  CAM_T rect_cam0 = rip_.rect_cam0(), rect_cam1 = rip_.rect_cam1();
+
+  // if we're using a window, we shift the cameras to correspond to that window
+  // (so the cameras project into the windowed disparity image)
+  if (!rect_target_window_.is_empty()) {
+    auto M0 = rect_cam0.get_matrix();
+    auto M1 = rect_cam1.get_matrix();
+    auto M0_shifted = M0;  // copy to remove const-ness
+    auto M1_shifted = M1;  // copy to remove const-ness
+    M0_shifted(0, 3) += rect_target_window_.min_x() * M0_shifted(2, 3);
+    M1_shifted(0, 3) += rect_target_window_.min_x() * M1_shifted(2, 3);
+    M0_shifted(1, 3) += rect_target_window_.min_y() * M0_shifted(2, 3);
+    M1_shifted(1, 3) += rect_target_window_.min_y() * M1_shifted(2, 3);
+    rect_cam0.set_matrix(M0_shifted);
+    rect_cam1.set_matrix(M1_shifted);
+  }
+
+  if (compute_hmap)
+    this->compute_height(rect_cam0, rect_cam1, disparity_fwd_, tri_3d_fwd_, ptset_fwd_,
+                         heightmap_fwd_);
   else
-    tri_3d_fwd_ = bpgl_3d_from_disparity(rip_.rect_cam0(), rip_.rect_cam1(), disparity_fwd_, params_.disparity_sense_);
+    tri_3d_fwd_ = bpgl_3d_from_disparity(rect_cam0, rect_cam1, disparity_fwd_,
+                                         params_.disparity_sense_);
 }
 
 // compute reverse height
 template <class CAM_T, class PIX_T>
 void bsgm_prob_pairwise_dsm<CAM_T, PIX_T>::compute_height_rev(bool compute_hmap)
 {
-  if(compute_hmap)
-    this->compute_height(rip_.rect_cam1(), rip_.rect_cam0(), disparity_rev_,
-                         tri_3d_rev_, ptset_rev_, heightmap_rev_);
+  // make copies so we can modify if we need to
+  CAM_T rect_cam0 = rip_.rect_cam0(), rect_cam1 = rip_.rect_cam1();
+
+  // if we're using a window, we shift the cameras to correspond to that window
+  // (so the cameras project into the windowed disparity image)
+  if (!rect_reference_window_.is_empty()) {
+    auto M0 = rect_cam0.get_matrix();
+    auto M1 = rect_cam1.get_matrix();
+    auto M0_shifted = M0;  // copy to remove const-ness
+    auto M1_shifted = M1;  // copy to remove const-ness
+    M0_shifted(0, 3) += rect_reference_window_.min_x() * M0_shifted(2, 3);
+    M1_shifted(0, 3) += rect_reference_window_.min_x() * M1_shifted(2, 3);
+    M0_shifted(1, 3) += rect_reference_window_.min_y() * M0_shifted(2, 3);
+    M1_shifted(1, 3) += rect_reference_window_.min_y() * M1_shifted(2, 3);
+    rect_cam0.set_matrix(M0_shifted);
+    rect_cam1.set_matrix(M1_shifted);
+  }
+
+  if (compute_hmap)
+    this->compute_height(rect_cam1, rect_cam0, disparity_rev_, tri_3d_rev_, ptset_rev_,
+                         heightmap_rev_);
   else
-    tri_3d_rev_ = bpgl_3d_from_disparity(rip_.rect_cam1(), rip_.rect_cam0(), disparity_rev_, params_.disparity_sense_);
+    tri_3d_rev_ = bpgl_3d_from_disparity(rect_cam1, rect_cam0, disparity_rev_, params_.disparity_sense_);
 }
 
 

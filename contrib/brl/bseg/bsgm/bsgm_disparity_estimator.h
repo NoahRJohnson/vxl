@@ -12,8 +12,10 @@
 
 #include <vul/vul_timer.h>
 #include <vnl/vnl_math.h>
+#include <vil/vil_crop.h>
 #include <vil/vil_image_view.h>
 #include <vil/vil_math.h>
+#include <vgl/vgl_box_2d.h>
 #include <vgl/vgl_vector_2d.h>
 #include "bsgm_census.h"
 #include <vil/algo/vil_sobel_3x3.h>
@@ -118,8 +120,8 @@ class bsgm_disparity_estimator
   //: Construct from parameters
   bsgm_disparity_estimator(
     const bsgm_disparity_estimator_params& params,
-    long long int img_width,
-    long long int img_height,
+    long long int cost_volume_width,
+    long long int cost_volume_height,
     long long int num_disparities);
     //: Destructor
   ~bsgm_disparity_estimator();
@@ -138,7 +140,8 @@ class bsgm_disparity_estimator
     float invalid_disparity,
     vil_image_view<float>& disp_target,
     float dynamic_range_factor = 1.0f,
-    bool skip_error_check = false);
+    bool skip_error_check = false,
+    const vgl_box_2d<size_t>& target_window = vgl_box_2d<size_t>());
 
   //: Write out the appearance or total cost volume as a set of images for
   // debugging
@@ -151,7 +154,7 @@ class bsgm_disparity_estimator
   //: Copy of the input params
   bsgm_disparity_estimator_params params_;
 
-  //: Size of image
+  //: Size of cost volume
   long long int w_, h_;
 
   //: Number of disparities to search over.
@@ -197,14 +200,16 @@ class bsgm_disparity_estimator
     const vil_image_view<T>& img_ref,
     const vil_image_view<bool>& invalid_target,
     std::vector< std::vector< unsigned char* > >& app_cost,
-    const vil_image_view<int>& min_disparity );
+    const vil_image_view<int>& min_disparity,
+    const vgl_box_2d<size_t>& target_window = vgl_box_2d<size_t>());
 
   void compute_xgrad_data(
     const vil_image_view<float>& grad_x_target,
     const vil_image_view<float>& grad_x_ref,
     const vil_image_view<bool>& invalid_target,
     std::vector< std::vector< unsigned char* > >& app_cost,
-    const vil_image_view<int>& min_disparity );
+    const vil_image_view<int>& min_disparity,
+    const vgl_box_2d<size_t>& target_window = vgl_box_2d<size_t>());
 
   //: Run the multi-directional dynamic programming that SGM uses
   void run_multi_dp(
@@ -257,8 +262,19 @@ void bsgm_disparity_estimator::compute_census_data(
   const vil_image_view<T>& img_ref,
   const vil_image_view<bool>& invalid_tar,
   std::vector< std::vector< unsigned char* > >& app_cost,
-  const vil_image_view<int>& min_disparity )
+  const vil_image_view<int>& min_disparity,
+  const vgl_box_2d<size_t>& target_window)
 {
+  int img_start_x, img_start_y;
+  if (target_window.is_empty()) {
+    img_start_x = 0;
+    img_start_y = 0;
+  }
+  else {
+    img_start_x = target_window.min_x();
+    img_start_y = target_window.min_y();
+  }
+
   int census_diam = 2*params_.census_rad + 1;
   if( census_diam > 7 ) census_diam = 7;
   if( census_diam < 3 ) census_diam = 3;
@@ -269,45 +285,47 @@ void bsgm_disparity_estimator::compute_census_data(
   vil_image_view<vxl_uint_64> census_tar, census_ref;
   vil_image_view<vxl_uint_64> census_conf_tar, census_conf_ref;
   bsgm_compute_census_img(
-    img_tar, census_diam, census_tar, census_conf_tar, params_.census_tol );
+    img_tar, census_diam, census_tar, census_conf_tar, params_.census_tol);
   bsgm_compute_census_img(
-    img_ref, census_diam, census_ref, census_conf_ref, params_.census_tol );
+    img_ref, census_diam, census_ref, census_conf_ref, params_.census_tol);
 
   // Construct a bit-set look-up table for use later
   unsigned char bit_set_table[256];
   bsgm_generate_bit_set_lut( bit_set_table );
 
   // Compute the appearance cost volume
-  for( int y = 0; y < h_; y++ ){
-    for( int x = 0; x < w_; x++ ){
-      
-      unsigned char* ac = app_cost[y][x];
+  // (keep track of SGM cost volume indices, and the corresponding target image indices)
+  for (int cost_y = 0, img_y = img_start_y; cost_y < h_; cost_y++, img_y++) {
+    for (int cost_x = 0, img_x = img_start_x; cost_x < w_; cost_x++, img_x++) {
+
+      unsigned char* ac = app_cost[cost_y][cost_x];
 
       // If invalid pixel, fill with 255
-      if( invalid_tar(x,y) ){
+      if (invalid_tar(cost_x, cost_y)) {
         for( int d = 0; d < num_disparities_; d++, ac++ )
           *ac = 255;
         continue;
       }
 
       // Target census values
-      vxl_uint_64 cen_t = census_tar(x,y);
-      vxl_uint_64 conf_t = census_conf_tar(x,y);
+      vxl_uint_64 cen_t = census_tar(img_x, img_y);
+      vxl_uint_64 conf_t = census_conf_tar(img_x, img_y);
 
       // Compute all costs
-      int x2 = x + min_disparity(x,y);
-      for ( int d = 0; d < num_disparities_; d++, x2++, ac++ ) {
+      int img_x2 = img_x + min_disparity(cost_x, cost_y);
+      for (int d = 0; d < num_disparities_; d++, img_x2++, ac++) {
 
         // Check valid match pixel
-        if( x2 < 0 || x2 >= w_ )
+        /* if (img_x2 < 0 || img_x2 >= w_) */
+        if (img_x2 < 0 || img_x2 >= img_ref.ni())
           *ac = 255;
 
         // Compare census values using hamming distance
         else {
 
           // reference census values
-          vxl_uint_64 cen_r = census_ref(x2,y);
-          vxl_uint_64 conf_r = census_conf_ref(x2,y);
+          vxl_uint_64 cen_r = census_ref(img_x2, img_y);
+          vxl_uint_64 conf_r = census_conf_ref(img_x2, img_y);
 
           // census comparison
           unsigned long long int cen_diff =
@@ -319,7 +337,7 @@ void bsgm_disparity_estimator::compute_census_data(
           float ham_norm = census_norm*ham;
           // weighted update of appearance cost
           float ac_new = (float)(*ac) + params_.census_weight*ham_norm;
-          
+
           *ac = (unsigned char)( ac_new > 255.0f ? 255.0f : ac_new );
         }
 
@@ -338,16 +356,37 @@ bool bsgm_disparity_estimator::compute(
   float invalid_disp,
   vil_image_view<float>& disp_tar,
   float dynamic_range_factor,
-  bool skip_error_check)
+  bool skip_error_check,
+  const vgl_box_2d<size_t>& target_window)
 {
-  disp_tar.set_size( w_, h_ );
+  // validate target image is big enough for the cost volume
+  if (target_window.is_empty()) {
+    if (img_tar.ni() != w_ || img_tar.nj() != h_)
+      return false;
+  }
+  else {
+    // sgm cost volume should have same size as target window
+    if (target_window.width() != w_ || target_window.height() != h_)
+      return false;
+    // target image must be large enough to be indexable by the target window
+    if (img_tar.ni() < target_window.max_x()
+        || img_tar.nj() < target_window.max_y())
+      return false;
+  }
 
-  // Validate images.
-  if( img_tar.ni() != w_ || img_tar.nj() != h_ ||
-      img_ref.ni() != w_ || img_ref.nj() != h_ ||
-      invalid_tar.ni() != w_ || invalid_tar.nj() != h_ ) return false;
+  // validate that the reference image is the same size as the target image
+  if (img_ref.ni() != img_tar.ni() || img_ref.nj() != img_tar.nj())
+    return false;
 
-  
+  // these two images should always have the same size as the cost volume
+  if (invalid_tar.ni() != w_ || invalid_tar.nj() != h_)
+    return false;
+  if (min_disp.ni() != w_ || min_disp.nj() != h_)
+    return false;
+
+  // disparity image
+  disp_tar.set_size(w_, h_);
+
   long long int num_voxels = w_*h_*num_disparities_;
   // determine appearance scale factor
   float gscale = 1.0f; //SW18 has gscale = 0.32f
@@ -363,9 +402,16 @@ bool bsgm_disparity_estimator::compute(
 
   // Compute gradient images.
   vil_image_view<float> grad_x_tar, grad_y_tar, grad_x_ref, grad_y_ref;
-  if (params_.use_gradient_weighted_smoothing ||
-    params_.xgrad_weight > 0.0f) {
+  if (params_.use_gradient_weighted_smoothing || params_.xgrad_weight > 0.0f) {
+
     vil_sobel_3x3<T, float>(img_tar, grad_x_tar, grad_y_tar);
+
+    /* if (target_window.is_empty()) { */
+    /*   vil_sobel_3x3<T, float>(img_tar, grad_x_tar, grad_y_tar); */
+    /* } */
+    /* else { */
+    /*   vil_sobel_3x3<T, float>(img_tar, target_window, grad_x_tar, grad_y_tar); */
+    /* } */
 
     if (app_scale > T(255)) {
       vil_math_scale_values(grad_x_tar, gscale);
@@ -377,19 +423,27 @@ bool bsgm_disparity_estimator::compute(
 
   // Compute appearance cost volume data.
   if( params_.census_weight > 0.0f ){
-    compute_census_data<T>( img_tar, img_ref,
-      invalid_tar, fused_cost_, min_disp );
+    compute_census_data<T>(img_tar, img_ref, invalid_tar, fused_cost_,
+                           min_disp, target_window);
   }
 
   if( params_.xgrad_weight > 0.0f ){
-    vil_sobel_3x3<T,float>( img_ref, grad_x_ref, grad_y_ref );
+
+    vil_sobel_3x3<T,float>(img_ref, grad_x_ref, grad_y_ref);
+
+    /* if (ref_window.is_empty()) { */
+    /*   vil_sobel_3x3<T,float>(img_ref, grad_x_ref, grad_y_ref); */
+    /* } */
+    /* else { */
+    /*   vil_sobel_3x3<T,float>(img_ref, ref_window, grad_x_ref, grad_y_ref); */
+    /* } */
 
     if (app_scale > T(255)) {
       vil_math_scale_values(grad_x_ref, gscale);
       vil_math_scale_values(grad_y_ref, gscale);
     }
-    compute_xgrad_data( grad_x_tar, grad_x_ref,
-      invalid_tar, fused_cost_, min_disp );
+    compute_xgrad_data(grad_x_tar, grad_x_ref, invalid_tar, fused_cost_,
+                       min_disp, target_window);
   }
 
   active_app_cost_ = &fused_cost_;
@@ -397,11 +451,29 @@ bool bsgm_disparity_estimator::compute(
   if( params_.print_timing )
     print_time( "Appearance cost computation", timer );
 
+  // Crop the target gradient images before passing them to run_multi_dp
+  // so that they are the same size as the cost volume. Won't be necessary
+  // in the future if we pre-compute the gradient over just the window
+  // (and the corresponding weird reference shape)
+  vil_image_view<float> grad_x_tar_cropped, grad_y_tar_cropped;
+  if (target_window.is_empty()) {
+    grad_x_tar_cropped = grad_x_tar;
+    grad_y_tar_cropped = grad_y_tar;
+  }
+  else {
+    grad_x_tar_cropped = vil_crop(grad_x_tar, target_window.min_x(),
+                                  target_window.width(), target_window.min_y(),
+                                  target_window.height());
+    grad_y_tar_cropped = vil_crop(grad_y_tar, target_window.min_x(),
+                                  target_window.width(), target_window.min_y(),
+                                  target_window.height());
+  }
+
   // Run the multi-directional dynamic programming to obtain a total cost
   // volume incorporating appearance + smoothing.
   run_multi_dp(
     *active_app_cost_, total_cost_,
-    invalid_tar, grad_x_tar, grad_y_tar, min_disp );
+    invalid_tar, grad_x_tar_cropped, grad_y_tar_cropped, min_disp);
 
   if( params_.print_timing )
     print_time( "Dynamic programming", timer );
@@ -424,11 +496,11 @@ bool bsgm_disparity_estimator::compute(
   // Find and fix errors if configured.
   if( params_.error_check_mode > 0 && !skip_error_check){
     bsgm_check_nonunique<T>( disp_tar, disp_cost,
-      img_tar, invalid_disp, params_.shadow_thresh);
+      img_tar, invalid_disp, params_.shadow_thresh, 1, target_window);
 
     if( params_.error_check_mode > 1 )
       bsgm_interpolate_errors<T>( disp_tar, invalid_tar,
-        img_tar, invalid_disp, params_.shadow_thresh);
+        img_tar, invalid_disp, params_.shadow_thresh, target_window);
 
     if (params_.print_timing)
       print_time("Consistency check", timer);

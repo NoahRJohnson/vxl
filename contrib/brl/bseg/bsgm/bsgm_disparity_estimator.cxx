@@ -15,12 +15,12 @@
 //----------------------------------------------------------------------------
 bsgm_disparity_estimator::bsgm_disparity_estimator(
   const bsgm_disparity_estimator_params& params,
-  long long int img_width,
-  long long int img_height,
-  long long int num_disparities ) :
+  long long int cost_volume_width,
+  long long int cost_volume_height,
+  long long int num_disparities) :
     params_( params ),
-    w_( img_width ),
-    h_( img_height ),
+    w_( cost_volume_width ),
+    h_( cost_volume_height ),
     num_disparities_( num_disparities ),
     cost_unit_( 64 ),
     p1_base_( 1.0f ),
@@ -28,23 +28,23 @@ bsgm_disparity_estimator::bsgm_disparity_estimator(
     p2_max_base_( 8.0f )
 {
   // Validate inputs
-  if (img_width < 0 || img_height < 0 || num_disparities < 0) {
+  if (cost_volume_width < 0 || cost_volume_height < 0 || num_disparities < 0) {
     std::ostringstream buffer;
     buffer << "Cannot construct bsgm_disparity_estimator with negative width, height, or num_disparities." << std::endl
-           << "width = " << img_width << std::endl
-           << "height = " << img_height << std::endl
+           << "width = " << cost_volume_width << std::endl
+           << "height = " << cost_volume_height << std::endl
            << "num_disparities = " << num_disparities << std::endl;
     throw std::runtime_error(buffer.str());
   }
 
   // Check cost volume size
-  long long int cost_volume_size = img_width * img_height * num_disparities;
+  long long int cost_volume_size = cost_volume_width * cost_volume_height * num_disparities;
   if (cost_volume_size < static_cast<long long int>(0) ||
       cost_volume_size > static_cast<long long int>(total_cost_data_.max_size())) {
     std::ostringstream buffer;
     buffer << "Cannot construct bsgm_disparity_estimator - cost volume is too large." << std::endl
-           << "width = " << img_width << std::endl
-           << "height = " << img_height << std::endl
+           << "width = " << cost_volume_width << std::endl
+           << "height = " << cost_volume_height << std::endl
            << "num_disparities = " << num_disparities << std::endl;
     throw std::runtime_error(buffer.str());
   }
@@ -66,36 +66,50 @@ void bsgm_disparity_estimator::compute_xgrad_data(
   const vil_image_view<float>& grad_x_ref,
   const vil_image_view<bool>& invalid_tar,
   std::vector< std::vector< unsigned char* > >& app_cost,
-  const vil_image_view<int>& min_disparity)
+  const vil_image_view<int>& min_disparity,
+  const vgl_box_2d<size_t>& target_window)
 {
+  int img_start_x, img_start_y;
+  if (target_window.is_empty()) {
+    img_start_x = 0;
+    img_start_y = 0;
+  }
+  else {
+    img_start_x = target_window.min_x();
+    img_start_y = target_window.min_y();
+  }
+
   float grad_norm = cost_unit_ / 8.0f;
   // Compute the appearance cost volume
-  for (int y = 0; y < h_; y++) {
-    for (int x = 0; x < w_; x++) {
-     
-      unsigned char* ac = app_cost[y][x];
+  // (keep track of SGM cost volume indices, and the corresponding target image indices)
+  for (int cost_y = 0, img_y = img_start_y; cost_y < h_; cost_y++, img_y++) {
+    for (int cost_x = 0, img_x = img_start_x; cost_x < w_; cost_x++, img_x++) {
+
+      unsigned char* ac = app_cost[cost_y][cost_x];
 
       // If invalid pixel, fill with 255
-      if (invalid_tar(x, y)) {
+      if (invalid_tar(cost_x, cost_y)) {
         for (int d = 0; d < num_disparities_; d++, ac++)
           *ac = 255;
         continue;
       }
 
       // Otherwise compute all costs
-      int x2 = x + min_disparity(x, y);
-      for (int d = 0; d < num_disparities_; d++, x2++, ac++) {
+      int img_x2 = img_x + min_disparity(cost_x, cost_y);
+      for (int d = 0; d < num_disparities_; d++, img_x2++, ac++) {
 
         // Check valid match pixel
-        if (x2 < 0 || x2 >= w_)
+        /* if (img_x2 < 0 || img_x2 >= w_) */
+        if (img_x2 < 0 || img_x2 >= grad_x_ref.ni())
           *ac = 255;
 
         // Compare gradient intensities
         else {
 
           // gradient comparison
-          float g = grad_norm * fabs(grad_x_tar(x, y) - grad_x_ref(x2, y));
-          
+          float g = grad_norm * fabs(grad_x_tar(img_x, img_y)
+                                     - grad_x_ref(img_x2, img_y));
+
           // weighted update of appearance cost
           float ac_new = (float)(*ac) + params_.xgrad_weight * g;
           *ac = (unsigned char)(ac_new > 255.0f ? 255.0f : ac_new);

@@ -43,6 +43,7 @@
 #include <vpgl/vpgl_affine_camera.h>
 #include <vpgl/vpgl_perspective_camera.h>
 #include <vgl/vgl_point_2d.h>
+#include <vgl/vgl_box_2d.h>
 #include <vgl/vgl_box_3d.h>
 #include <vgl/vgl_pointset_3d.h>
 #include <vil/vil_image_view.h>
@@ -133,6 +134,9 @@ struct pairwise_params
   // the effective bits per pixel for an image, e.g. a dynamic range of 2047 corresponds to 11 bits
   int effective_bits_per_pixel_ = 8;
 
+  // how many pixels to expand a target window by, post-rectification (to allow SGM to ramp up)
+  size_t target_margin_ = 100;
+
 };
 
 template <class CAM_T, class PIX_T>
@@ -220,11 +224,21 @@ class bsgm_prob_pairwise_dsm
   void scene_box(vgl_box_3d<double> scene_box) { scene_box_ = scene_box; }
   vgl_box_3d<double> scene_box() const { return scene_box_; }
 
+  //: target image window to process within
+  void target_window(vgl_box_2d<size_t> target_window) { target_window_ = target_window; }
+  vgl_box_2d<size_t> target_window() const { return target_window_; }
+
+  //: reference image window to process within
+  void reference_window(vgl_box_2d<double> reference_window) { reference_window_ = reference_window; }
+  vgl_box_2d<double> reference_window() const { return reference_window_; }
+
   //: rectified images and cams
   const vil_image_view<PIX_T>& rectified_bview0() const  {return rect_bview0_;}
   const vil_image_view<PIX_T>& rectified_bview1() const  {return rect_bview1_;}
   const CAM_T& rectified_cam0() const {return rip_.rect_cam0();}
   const CAM_T& rectified_cam1() const {return rip_.rect_cam1();}
+  const vgl_box_2d<size_t>& rectified_target_window() const {return rect_target_window_;}
+  const vgl_box_2d<size_t>& rectified_reference_window() const {return rect_reference_window_;}
 
   //: disparity results
   vil_image_view<vxl_byte> invalid_map_fwd() const { return bool_to_byte(invalid_map_fwd_); }
@@ -239,7 +253,7 @@ class bsgm_prob_pairwise_dsm
   const vil_image_view<float>& tri_3d_rev() const {return tri_3d_rev_;}
   const vil_image_view<float>& xyz_prob() const {return xyz_prob_;}
 
-    const vil_image_view<float>& heightmap_fwd() const {return heightmap_fwd_;}
+  const vil_image_view<float>& heightmap_fwd() const {return heightmap_fwd_;}
   const vil_image_view<float>& heightmap_rev() const {return heightmap_rev_;}
 
   const vgl_pointset_3d<float> ptset_fwd() const {return ptset_fwd_;}
@@ -313,13 +327,19 @@ class bsgm_prob_pairwise_dsm
 
  protected:
 
+  vgl_box_2d<size_t> rectify_window(
+      vgl_box_2d<size_t>& window,
+      vnl_matrix_fixed<double, 3, 3> H,
+      size_t ni, size_t nj);
+
   // compute disparity for generic inputs
   void compute_disparity(
       const vil_image_view<PIX_T>& img,
       const vil_image_view<PIX_T>& img_reference,
       bool forward,  // == true or reverse == false
       vil_image_view<bool>& invalid,
-      vil_image_view<float>& disparity);
+      vil_image_view<float>& disparity,
+      vgl_box_2d<size_t>& img_window);
 
   // compute height for generic inputs
   void compute_height(
@@ -359,11 +379,17 @@ class bsgm_prob_pairwise_dsm
 
   vgl_box_3d<double> scene_box_;
 
+  vgl_box_2d<double> target_window_;
+  vgl_box_2d<size_t> rect_target_window_;
+
+  vgl_box_2d<double> reference_window_;
+  vgl_box_2d<size_t> rect_reference_window_;
+
   vil_image_view<PIX_T> rect_bview0_;
   vil_image_view<PIX_T> rect_bview1_;
 
   std::map<int, float> bits_per_pix_factors_;
-  
+
   // disparity data
   vil_image_view<bool> invalid_map_fwd_;
   vil_image_view<bool> invalid_map_rev_;

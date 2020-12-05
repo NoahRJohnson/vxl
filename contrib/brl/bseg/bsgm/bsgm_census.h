@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <limits>
+#include <vgl/vgl_box_2d.h>
 #include <vil/vil_image_view.h>
 
 //:
@@ -24,21 +25,41 @@ bool bsgm_compute_census_img(
   int nbhd_diam,
   vil_image_view<vxl_uint_64>& census,
   vil_image_view<vxl_uint_64>& census_conf,
-  int tol = 2 )
+  int tol = 2,
+  const vgl_box_2d<size_t>& crop_window = vgl_box_2d<size_t>())
 {
-  int height = img.nj(), width = img.ni();
-  T max_val = std::numeric_limits<T>::max();
+
   // Can't handle bigger patch sizes with current implementation.
   if( nbhd_diam > 7 ) return false;
+  int nbhd_rad = (nbhd_diam-1)/2;
+
+  // Iteration bounds
+  int width, height, start_x, start_y, stop_x, stop_y;
+  if (crop_window.is_empty()) {
+    width = img.ni();
+    height = img.nj();
+    start_x = nbhd_rad;
+    start_y = nbhd_rad;
+    stop_x = width - nbhd_rad;
+    stop_y = height - nbhd_rad;
+  }
+  else {
+    width = crop_window.width();
+    height = crop_window.height();
+    start_x = crop_window.min_x() + nbhd_rad;
+    start_y = crop_window.min_y() + nbhd_rad;
+    stop_x = crop_window.max_x() - nbhd_rad;
+    stop_y = crop_window.max_y() - nbhd_rad;
+  }
 
   census.set_size( width, height );
   census_conf.set_size( width, height );
 
-  int nbhd_rad = (nbhd_diam-1)/2;
   // Iterate over each pixel
-  for( int y = nbhd_rad; y < height-nbhd_rad; y++ ){
-    for( int x = nbhd_rad; x < width-nbhd_rad; x++ ){
-      T val = img(x, y);
+  T max_val = std::numeric_limits<T>::max();
+  for (int img_y = start_y, census_y = 0; img_y < stop_y; img_y++, census_y++) {
+    for (int img_x = start_x, census_x = 0; img_x < stop_x; img_x++, census_x++) {
+      T val = img(img_x, img_y);
       if (val > 0)
         int great = 0;
       T center_max = T( std::min<T>( max_val, val+tol ) );
@@ -49,9 +70,9 @@ bool bsgm_compute_census_img(
       unsigned long long cen = 0;
       unsigned long long conf = 0;
 
-      int x_min = x-nbhd_rad, y_min = y-nbhd_rad;
+      int x_min = img_x - nbhd_rad, y_min = img_y - nbhd_rad;
 
-      T img_xy = img(x,y);
+      T img_xy = img(img_x, img_y);
       for( int dy = 0; dy < nbhd_diam; dy++ ){
         const T* img_x2y2 = &img( x_min, y_min + dy );
         for( int dx = 0; dx < nbhd_diam; dx++, img_x2y2++ ){
@@ -66,8 +87,8 @@ bool bsgm_compute_census_img(
           if( *img_x2y2 <= center_min || *img_x2y2 >= center_max ) conf++;
         }
       }
-      census(x,y) = cen;
-      census_conf(x,y) = conf;
+      census(census_x, census_y) = cen;
+      census_conf(census_x, census_y) = conf;
     }
   }
   return true;
